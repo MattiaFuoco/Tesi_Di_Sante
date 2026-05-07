@@ -1,0 +1,19 @@
+# Ignora l'ambiente virtuale Python locale
+venv/
+.tesi_env/
+
+# Ignora la cache di Python
+__pycache__/
+*.pyc
+
+# Ignora le cartelle dei risultati passati
+RESULTS_Workload_*/
+
+# Ignora YCSB (grande, non serve al build Docker)
+ycsb/
+
+# Ignora la cronologia di Git
+.git/
+
+# Ignora i file di log eventuali
+*.log

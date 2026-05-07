@@ -1,0 +1,200 @@
+TESI: Ottimizzazione automatica delle prestazioni di MongoDB mediante tuning dei parametri di configurazione
+(Performance Optimization of MongoDB through Automated Configuration Tuning)
+
+
+================================================================================
+Descrizione dell'Architettura
+================================================================================
+Questo progetto implementa un framework avanzato di benchmarking e ottimizzazione
+per database NoSQL (MongoDB). L'intero sistema gira all'interno di un singolo
+container Docker privilegiato che contiene Python, MongoDB, YCSB e tutti gli
+strumenti necessari. Lo script di avvio (start_benchmark.sh) si occupa di
+costruire l'immagine e lanciare il container con un solo comando.
+
+
+================================================================================
+Architettura dello Storage: Il "Mega-Load" e i 3 Dataset Isolati
+================================================================================
+Una delle sfide principali nell'ottimizzazione di MongoDB è il tuning della
+compressione (WiredTiger Block Compressor). Poiché la compressione dei dati
+avviene a livello fisico sul disco, non è possibile testare le prestazioni in
+lettura/scrittura cambiando semplicemente un parametro "al volo" su un database
+già esistente.
+
+Per garantire tempi di esecuzione efficienti e mantenere l'integrità strutturale,
+il framework adotta una strategia basata su 3 Dataset Isolati:
+
+-- Il "Mega-Load" Iniziale (Fase Preliminare):
+   Prima che gli algoritmi inizino la loro esplorazione, il Master Runner esegue
+   una preparazione massiva. Avvia in sequenza mongod tre volte, assegnando ad
+   ogni istanza un compressore nativo diverso (none, snappy, zstd).
+   Tramite YCSB, popola fisicamente questi tre database inserendo l'intero dataset
+   (2.000.000 record, circa 1 KB cadauno).
+
+-- Persistenza Dedicata (3 directory interne al container):
+   I dati vengono salvati in directory separate all'interno del container,
+   montate come volume sull'host per garantirne la persistenza:
+
+     /data/db/none/    → dataset compresso con compressore "none"
+     /data/db/snappy/  → dataset compresso con Snappy
+     /data/db/zstd/    → dataset compresso con ZSTD
+
+   Questo elimina il layer overlayfs interno di Docker, garantendo che le
+   operazioni I/O di MongoDB colpiscano il filesystem direttamente,
+   senza intermediari software che alterino le misurazioni.
+
+-- Switch Dinamico (Fase di Run):
+   Durante la fase di ottimizzazione, quando un algoritmo decide di valutare una
+   specifica configurazione (es. Compressor: snappy, Cache: 2GB), l'orchestratore
+   ferma mongod e lo riavvia puntando alla directory del compressore corretto,
+   agganciando al volo il dataset pre-caricato corrispondente.
+
+Questo approccio architetturale permette agli algoritmi di scambiare il
+compressore in pochi secondi, simulando la presenza di tre giganteschi database
+MongoDB paralleli, senza dover subire il pesantissimo overhead di ricaricare i
+dati da zero ad ogni singola iterazione di test.
+
+
+================================================================================
+Gestione della OS Page Cache (Cold Start Garantito)
+================================================================================
+Per ottenere misurazioni I/O realistiche, prima di ogni run il framework forza
+uno svuotamento completo della RAM cache del sistema operativo.
+
+Il container viene lanciato con --privileged, che condivide il namespace del
+kernel host. Questo permette di scrivere direttamente su:
+  sync; echo 3 > /proc/sys/vm/drop_caches
+colpendo il kernel host reale senza bisogno di container intermedi.
+
+Livelli di controllo della cache (dal più profondo al più esterno):
+
+  1. nocache (wrappa mongod): impedisce a mongod di popolare la page cache
+     durante ogni singola operazione I/O.
+  2. direct_io=[data,log]: WiredTiger bypassa la page cache per i suoi
+     file interni di dati e journal (solo su Server Debian).
+  3. drop_caches prima di ogni run: svuota tutto ciò che potrebbe essere
+     rimasto in cache da processi di sistema o dal run precedente.
+
+
+================================================================================
+Rilevamento Automatico dell'Ambiente
+================================================================================
+Il file config.py e lo script start_benchmark.sh rilevano automaticamente
+l'ambiente in cui stanno girando leggendo /proc/version:
+
+- Se contiene "microsoft" → WSL2:
+    - Direct I/O solo sui dati (il log crasha su filesystem virtuale WSL2)
+
+- Altrimenti → Server Debian:
+    - Direct I/O completo su dati e log (bare-metal lo supporta pienamente)
+
+In entrambi i casi il container è unico e l'architettura è identica.
+Non è necessario modificare nulla manualmente: un solo comando gestisce entrambi
+gli ambienti.
+
+
+================================================================================
+The "Single Source of Truth"
+================================================================================
+L'intero framework è governato da un file centrale (config.py). Per garantire
+la massima equità accademica e un confronto "ad armi pari", tutti gli algoritmi
+euristici (Random Search, Simulated Annealing, Evolutionary Algorithm, Bayesian
+Optimization, Coordinate Search, Hill Climbing) condividono un budget di
+valutazioni dinamico e centralizzato (MAX_EVALUATIONS = 81, esattamente la metà
+delle 162 configurazioni totali esplorate dalla Grid Search).
+Modificando questo singolo parametro, tutti gli algoritmi ricalcoleranno
+automaticamente la propria termodinamica, i cicli evolutivi o le fasi esplorative.
+
+
+================================================================================
+Prerequisiti
+================================================================================
+Prima di lanciare l'esperimento, assicurati di avere a disposizione sul sistema:
+
+- Docker (o Docker Desktop) installato e in esecuzione.
+- YCSB (Yahoo Cloud Serving Benchmark): scaricato e configurato
+  automaticamente dallo script di avvio se non presente.
+  Non è necessario installarlo manualmente.
+- Il Dockerfile incluso nel progetto: usato automaticamente per costruire
+  l'immagine benchmark-all-in-one:latest che contiene MongoDB 7, Python,
+  Java, nocache e tutte le dipendenze. Non richiede alcuna azione manuale.
+- Il file .dockerignore incluso nel progetto: esclude automaticamente dal
+  build Docker le cartelle inutili (risultati, YCSB, cache Python),
+  velocizzando il build dell'immagine.
+
+Nota: Java, Python e le dipendenze Python sono già inclusi nell'immagine
+Docker — non è necessario installarli sul sistema host.
+
+
+================================================================================
+Esecuzione (Zero-Click) — UN SOLO COMANDO
+================================================================================
+Il processo è interamente automatizzato. Lo script di avvio:
+
+  1. Rileva automaticamente l'ambiente (WSL2 o Server Debian).
+  2. Scarica e configura YCSB automaticamente se non presente.
+  3. Costruisce l'immagine Docker benchmark-all-in-one:latest dal Dockerfile
+     incluso (solo se non già presente o se i file sono stati modificati —
+     richiede ~3 minuti alla prima esecuzione, poi viene riutilizzata).
+     La rebuild è automatica: se config.py o altri file Python vengono
+     modificati, lo script rileva il cambiamento e ricostruisce l'immagine.
+  4. Crea la cartella results/ sull'host per la persistenza dei risultati.
+  5. Avvia il container unico con tutto dentro.
+
+Il comando da eseguire è sempre e solo:
+
+    sudo bash start_benchmark.sh
+
+Questo vale sia su WSL2 (da terminale Ubuntu/Debian) che su Server Debian.
+Non è necessario impostare variabili d'ambiente o modificare file di configurazione.
+
+
+================================================================================
+Cosa fa il container in background?
+================================================================================
+All'avvio il container esegue master_runner.py che:
+  1. Esegue il Mega-Load iniziale: avvia mongod 3 volte (una per compressore)
+     e popola i 3 dataset tramite YCSB.
+  2. Per ogni workload (A, B, D) esegue in sequenza tutti e 7 gli algoritmi
+     di ottimizzazione.
+  3. Prima di ogni run, svuota la OS Page Cache per garantire il Cold Start.
+  4. Al termine genera i grafici comparativi (Anytime Performance).
+  5. Esegue il teardown finale.
+
+I risultati sopravvivono al destroy del container perché vengono salvati
+nella cartella results/ montata sull'host.
+
+
+================================================================================
+Cosa accade durante l'esecuzione?
+================================================================================
+Il sistema avvierà in sequenza i 7 algoritmi per i seguenti scenari (standard YCSB):
+
+  Workload A (50/50):       50% Read / 50% Update
+  Workload B (95/5):        95% Read / 5% Update
+  Workload D (Read Latest): 95% Letture / 5% Inserimenti
+
+mongod viene avviato e fermato dinamicamente per ogni configurazione testata.
+Prima di ogni singola iterazione di test, viene forzato il drop delle cache in
+RAM per garantire risultati stabili e non alterati dalle letture precedenti
+(Cold Start garantito).
+
+
+================================================================================
+Risultati Generati
+================================================================================
+Al termine dell'esecuzione, tutti i file CSV e i grafici verranno salvati
+automaticamente nella cartella results/ nella directory del progetto. Troverai:
+
+- Cartelle results/RESULTS_Workload_X_...:
+  Contengono i file CSV grezzi e le Heatmap (Grid/Topografiche) di ogni singolo
+  algoritmo per i Workload A, B e D. Le mappe mostrano il percorso decisionale
+  di ciascun algoritmo.
+
+- File REPORT_STEPS_WL_X.png:
+  Grafico aggregato comparativo (Anytime Performance) basato sul budget di step.
+
+- File REPORT_TIME_WL_X.png:
+  Grafico aggregato comparativo (Anytime Performance) basato sul tempo reale
+  (fondamentale per valutare l'overhead introdotto dai processi decisionali
+  dell'Intelligenza Artificiale).

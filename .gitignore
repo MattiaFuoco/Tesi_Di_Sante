@@ -1,0 +1,25 @@
+# Editor
+.vscode/
+
+# Ambiente virtuale Python
+.tesi_env/
+venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# YCSB (grande, si scarica automaticamente)
+ycsb/
+
+# Risultati benchmark (pesanti, restano in locale)
+results/
+RESULTS_Workload_*/
+
+# Log
+*.log
+
+# File di sistema
+.DS_Store
+Thumbs.db
