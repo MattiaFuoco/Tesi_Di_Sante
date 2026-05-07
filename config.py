@@ -24,7 +24,7 @@ MAX_EVALUATIONS = 90
 # ==========================================
 REPETITIONS = 5
 FIXED_THREADS = 16
-OPS_PER_THREAD = 60000
+OPS_PER_THREAD = 50000
 PRELOAD_DOCS = 220000
 
 # ────────────────────────────── SWITCH AMBIENTE ──────────────────────────
