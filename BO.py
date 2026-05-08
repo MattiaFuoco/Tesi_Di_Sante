@@ -35,7 +35,6 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI
 # ==========================================
-BASE_DIR = os.path.join(get_master_dir(), "Bayesian Optimization")
 
 # PARAMETRI BAYESIAN OPTIMIZATION
 INIT_POINTS = 10      # Punti casuali esplorativi iniziali
@@ -220,6 +219,9 @@ def main():
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
     print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    
+    # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
+    BASE_DIR = os.path.join(get_master_dir(), "Bayesian Optimization")
     print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
 
     # Creazione directory e file CSV per i risultati

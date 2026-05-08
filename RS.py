@@ -29,7 +29,6 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI
 # ==========================================
-BASE_DIR = os.path.join(get_master_dir(), "Random Search")
 
 # ==========================================
 # GENERAZIONE GRAFICI MATRICE (3x3) CON STELLINA
@@ -159,6 +158,9 @@ def main():
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
     print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    
+    # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
+    BASE_DIR = os.path.join(get_master_dir(), "Random Search")
     print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     # Creiamo la cartella dei risultati se non esiste e prepariamo il file CSV per salvare i risultati in modo pulito e strutturato.

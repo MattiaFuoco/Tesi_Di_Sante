@@ -30,7 +30,6 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI SA
 # ==========================================
-BASE_DIR = os.path.join(get_master_dir(), "Simulated Annealing")
 
 T_INIT = 1.0       # (Rappresenta una tolleranza iniziale alta per cali di performance, es. 10%)
 T_MIN = 0.001      # (Fine del raffreddamento)
@@ -265,6 +264,9 @@ def main():
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
     print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    
+    # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
+    BASE_DIR = os.path.join(get_master_dir(), "Simulated Annealing")
     print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     # Creiamo la directory dei risultati se non esiste, e prepariamo il file CSV per registrare tutte le valutazioni, accettazioni e tempi.

@@ -28,7 +28,6 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI
 # ==========================================
-BASE_DIR = os.path.join(get_master_dir(), "Coordinate Search")
 
 # ==========================================
 # CONTATORE DI VALUTAZIONI PER LA STOP CONDITION
@@ -234,6 +233,9 @@ def main():
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"[DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
     print(f"[DEBUG] get_master_dir() ritorna: {master_dir}")
+    
+    # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
+    BASE_DIR = os.path.join(get_master_dir(), "Coordinate Search")
     print(f"[DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     os.makedirs(BASE_DIR, exist_ok=True)

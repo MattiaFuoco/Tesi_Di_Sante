@@ -24,12 +24,12 @@ MAX_EVALUATIONS = 90
 # ==========================================
 REPETITIONS = 5
 FIXED_THREADS = 16
-OPS_PER_THREAD = 60000
+OPS_PER_THREAD = 80000
 PRELOAD_DOCS = 220000
 
-# ────────────────────────────── SWITCH AMBIENTE ──────────────────────────
-IS_SERVER = os.environ.get("BENCHMARK_ENV", "wsl") == "server"
-USE_DIRECT_IO = IS_SERVER
+# ────────────────────────────── SWITCH AMBIENTE (DIRECT_IO DISABILITATO) ──────────────────────────
+# IS_SERVER = os.environ.get("BENCHMARK_ENV", "wsl") == "server"
+# USE_DIRECT_IO = IS_SERVER
 
 # Percorsi interni al container (unico container, tutto dentro)
 DATA_BASE_PATH = "/data/db"       # /data/db/none, /data/db/snappy, /data/db/zstd
@@ -103,10 +103,10 @@ def _start_mongod(compressor, cache_gb=1.0, journal_ms=100):
         "--setParameter", f"journalCommitInterval={journal_ms}",
     ]
 
-    if USE_DIRECT_IO:
-        cmd += ["--wiredTigerEngineConfigString", "direct_io=[data,log]"]
-    else:
-        cmd += ["--wiredTigerEngineConfigString", "direct_io=[data]"]
+    #if USE_DIRECT_IO:
+    #    cmd += ["--wiredTigerEngineConfigString", "direct_io=[data,log]"]
+    #else:
+    #    cmd += ["--wiredTigerEngineConfigString", "direct_io=[data]"]
 
     _mongod_process = subprocess.Popen(
         cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
@@ -234,19 +234,21 @@ def execute_full_test(cache_gb, journal_ms, compressor, dist):
 
     for r in range(REPETITIONS):
         start_time = time.time()
+        try:
+            print(f"   [Rep {r+1}/{REPETITIONS}] [CLEANUP] Drop OS Page Cache...", flush=True)
+            drop_os_cache()
 
-        print(f"   [Rep {r+1}/{REPETITIONS}] [CLEANUP] Drop OS Page Cache...", flush=True)
-        drop_os_cache()
-
-        print(f"   [Rep {r+1}/{REPETITIONS}] [START] mongod "
+            print(f"   [Rep {r+1}/{REPETITIONS}] [START] mongod "
               f"(Comp={compressor.upper()}, Cache={cache_gb}GB, Journal={journal_ms}ms)...",
               flush=True)
-        restart_mongodb_for_run(cache_gb, compressor, journal_ms)
+            restart_mongodb_for_run(cache_gb, compressor, journal_ms)
 
-        print(f"   [Rep {r+1}/{REPETITIONS}] [RUN] Benchmark...", flush=True)
-        thr = run_benchmark(dist)
-
-        _stop_mongod()
+            print(f"   [Rep {r+1}/{REPETITIONS}] [RUN] Benchmark...", flush=True)
+            thr = run_benchmark(dist)
+        except Exception as e:
+            print(f"\n❌ ERRORE durante il test: {e}")
+            _stop_mongod()
+            thr = 0.0
 
         dur = time.time() - start_time
         throughputs.append(thr)

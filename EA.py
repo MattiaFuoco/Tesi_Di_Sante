@@ -29,7 +29,6 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI DARWINIANE
 # ==========================================
-BASE_DIR = os.path.join(get_master_dir(), "Evolutionary Algorithm")
 
 # PARAMETRI DELL'ALGORITMO GENETICO (PURI)
 # Dimensione della popolazione per generazione
@@ -259,6 +258,9 @@ def main():
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
     print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    
+    # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
+    BASE_DIR = os.path.join(get_master_dir(), "Evolutionary Algorithm")
     print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     # Creazione della cartella per i risultati, con timestamp per evitare sovrascritture e mantenere ordine cronologico.
