@@ -24,7 +24,7 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI
 # ==========================================
-BASE_DIR = os.path.join(master_dir, "Grid Search")
+BASE_DIR = os.path.join(get_master_dir(), "Grid Search")
 
 # ==========================================
 # GENERAZIONE GRAFICI MATRICE (3x3)
@@ -108,6 +108,13 @@ def plot_gs_master(csv_file, output_prefix):
 # ==========================================
 def main():
     print(f"🗄️ PARTENZA ALGORITMO: GRID SEARCH (Workload {WORKLOAD_TYPE})")
+    
+    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    master_dir = get_master_dir()
+    env_var = os.environ.get("BENCHMARK_MASTER_DIR")
+    print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
+    print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     # Creiamo la cartella dei risultati se non esiste e prepariamo il file CSV per salvare i risultati in modo pulito e strutturato.
     os.makedirs(BASE_DIR, exist_ok=True)

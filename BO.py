@@ -35,7 +35,7 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI
 # ==========================================
-BASE_DIR = os.path.join(master_dir, "Bayesian Optimization")
+BASE_DIR = os.path.join(get_master_dir(), "Bayesian Optimization")
 
 # PARAMETRI BAYESIAN OPTIMIZATION
 INIT_POINTS = 10      # Punti casuali esplorativi iniziali
@@ -214,6 +214,13 @@ def get_normalized_coords(c_idx, j_idx, comp_idx, d_idx):
 
 def main():
     print(f"🧠 PARTENZA ALGORITMO: BAYESIAN OPTIMIZATION (Workload {WORKLOAD_TYPE})")
+
+    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    master_dir = get_master_dir()
+    env_var = os.environ.get("BENCHMARK_MASTER_DIR")
+    print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
+    print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
 
     # Creazione directory e file CSV per i risultati
     os.makedirs(BASE_DIR, exist_ok=True)

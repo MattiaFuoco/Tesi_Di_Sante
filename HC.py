@@ -29,7 +29,7 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI
 # ==========================================
-BASE_DIR = os.path.join(master_dir, "Hill Climbing")
+BASE_DIR = os.path.join(get_master_dir(), "Hill Climbing")
 
 # ==========================================
 # VALUTAZIONE CON MEMORIA E CLEAN CSV
@@ -224,6 +224,13 @@ evaluations_done = 0
 def main():
     global evaluations_done
     evaluations_done = 0
+    
+    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    master_dir = get_master_dir()
+    env_var = os.environ.get("BENCHMARK_MASTER_DIR")
+    print(f"[DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
+    print(f"[DEBUG] get_master_dir() ritorna: {master_dir}")
+    print(f"[DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     # Creazione del CSV con intestazione
     os.makedirs(BASE_DIR, exist_ok=True)

@@ -28,7 +28,7 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI
 # ==========================================
-BASE_DIR = os.path.join(master_dir, "Coordinate Search")
+BASE_DIR = os.path.join(get_master_dir(), "Coordinate Search")
 
 # ==========================================
 # CONTATORE DI VALUTAZIONI PER LA STOP CONDITION
@@ -228,6 +228,13 @@ def plot_cs_master(csv_file, output_prefix):
 def main():
     global evaluations_done
     evaluations_done = 0
+    
+    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    master_dir = get_master_dir()
+    env_var = os.environ.get("BENCHMARK_MASTER_DIR")
+    print(f"[DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
+    print(f"[DEBUG] get_master_dir() ritorna: {master_dir}")
+    print(f"[DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     os.makedirs(BASE_DIR, exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")

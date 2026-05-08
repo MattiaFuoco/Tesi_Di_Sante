@@ -29,7 +29,7 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI DARWINIANE
 # ==========================================
-BASE_DIR = os.path.join(master_dir, "Evolutionary Algorithm")
+BASE_DIR = os.path.join(get_master_dir(), "Evolutionary Algorithm")
 
 # PARAMETRI DELL'ALGORITMO GENETICO (PURI)
 # Dimensione della popolazione per generazione
@@ -253,6 +253,13 @@ def plot_ea_master(csv_file, output_prefix):
 # ==========================================
 def main():
     print(f"🧬 PARTENZA ALGORITMO: ALGORITMO EVOLUTIVO (Workload {WORKLOAD_TYPE})")
+    
+    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    master_dir = get_master_dir()
+    env_var = os.environ.get("BENCHMARK_MASTER_DIR")
+    print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
+    print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     # Creazione della cartella per i risultati, con timestamp per evitare sovrascritture e mantenere ordine cronologico.
     os.makedirs(BASE_DIR, exist_ok=True)

@@ -24,7 +24,7 @@ MAX_EVALUATIONS = 90
 # ==========================================
 REPETITIONS = 5
 FIXED_THREADS = 16
-OPS_PER_THREAD = 50000
+OPS_PER_THREAD = 60000
 PRELOAD_DOCS = 220000
 
 # ────────────────────────────── SWITCH AMBIENTE ──────────────────────────
@@ -42,6 +42,12 @@ YCSB_PATH   = os.path.join(CURRENT_DIR, "ycsb", "bin", "ycsb.sh")
 # ==========================================
 # 4. DIRECTORY DI LAVORO
 # ==========================================
+# IMPORTANTE: get_master_dir() viene usato dai file algoritmi per leggere 
+# sempre il valore CORRENTE della variabile d'ambiente, non il valore al momento dell'import
+def get_master_dir():
+    """Restituisce SEMPRE il valore CORRENTE di BENCHMARK_MASTER_DIR."""
+    return os.environ.get("BENCHMARK_MASTER_DIR", os.getcwd())
+
 master_dir   = os.environ.get("BENCHMARK_MASTER_DIR", os.getcwd())
 WORKLOAD_TYPE = os.environ.get("WORKLOAD_TYPE", "A")
 

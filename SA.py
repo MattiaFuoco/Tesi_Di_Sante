@@ -30,9 +30,9 @@ from config import *
 # ==========================================
 # VARIABILI GLOBALI E COSTANTI SA
 # ==========================================
-BASE_DIR = os.path.join(master_dir, "Simulated Annealing")
+BASE_DIR = os.path.join(get_master_dir(), "Simulated Annealing")
 
-T_INIT = 1.0       # (Rappresenta una tolleranza iniziale alta per cali di performance)
+T_INIT = 1.0       # (Rappresenta una tolleranza iniziale alta per cali di performance, es. 10%)
 T_MIN = 0.001      # (Fine del raffreddamento)
 
 # 2. Definiamo quanti tentativi fare a ogni step di temperatura
@@ -259,6 +259,13 @@ def plot_sa_master(csv_file, output_prefix):
 # ==========================================
 def main():
     print(f"🌡️ PARTENZA ALGORITMO: SIMULATED ANNEALING (Workload {WORKLOAD_TYPE})")
+    
+    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    master_dir = get_master_dir()
+    env_var = os.environ.get("BENCHMARK_MASTER_DIR")
+    print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
+    print(f"   [DEBUG] get_master_dir() ritorna: {master_dir}")
+    print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
     
     # Creiamo la directory dei risultati se non esiste, e prepariamo il file CSV per registrare tutte le valutazioni, accettazioni e tempi.
     os.makedirs(BASE_DIR, exist_ok=True)

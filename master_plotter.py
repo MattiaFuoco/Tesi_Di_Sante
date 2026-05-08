@@ -79,6 +79,10 @@ def main():
     master_dir = os.environ.get("BENCHMARK_MASTER_DIR")
     workload = os.environ.get("WORKLOAD_TYPE")
 
+    # ⚠️ DEBUG: Verifica variabili d'ambiente
+    print(f"\n[PLOTTER DEBUG] BENCHMARK_MASTER_DIR (env var): {master_dir}")
+    print(f"[PLOTTER DEBUG] WORKLOAD_TYPE (env var): {workload}")
+
     if not master_dir or not workload:
         print("❌ [PLOTTER ERROR] Variabili d'ambiente mancanti. Uso cartella locale per test.")
         master_dir = os.getcwd()
@@ -96,6 +100,10 @@ def main():
 
     # Cerca i CSV in tutte le sottocartelle (BO, HC, ecc.)
     all_csvs = glob.glob(os.path.join(master_dir, "**", "*.csv"), recursive=True)
+    print(f"[PLOTTER DEBUG] Cercando CSV in: {master_dir}")
+    print(f"[PLOTTER DEBUG] CSV trovati: {len(all_csvs)}")
+    if all_csvs:
+        print(f"[PLOTTER DEBUG] Primi 3 CSV: {all_csvs[:3]}")
 
     # Setup stile accademico
     plt.style.use('seaborn-v0_8-darkgrid')

@@ -94,6 +94,7 @@ docker run --rm \
     --memory "6g" \
     --memory-swap "6g" \
     -e BENCHMARK_ENV="$BENCHMARK_ENV" \
+    -e PYTHONUNBUFFERED=1 \
     -e RESULTS_DIR="/app/results" \
     -v "$(pwd)/results":/app/results \
     -v "$(pwd)/ycsb":/app/ycsb \

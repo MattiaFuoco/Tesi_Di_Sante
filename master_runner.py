@@ -57,14 +57,18 @@ def run_automation():
             if os.path.exists(script):
                 print(f"▶️ Esecuzione: {name}...")
                 # Lancia lo script e aspetta che finisca
-                subprocess.run([sys.executable, script])
+                # ⚠️ IMPORTANTE: Passa esplicitamente l'environment per garantire che le variabili
+                # d'ambiente (BENCHMARK_MASTER_DIR, WORKLOAD_TYPE) vengano ereditate dal subprocess.
+                # Questo è critico sul server Debian dove l'ereditarietà dell'environment
+                # potrebbe non funzionare se non passata esplicitamente.
+                subprocess.run([sys.executable, "-u", script], env=os.environ.copy())
                 time.sleep(3) # Pausa di respiro per il PC tra un algoritmo e l'altro
             else:
                 print(f"⚠️ Script non trovato: {script}")
         
         print(f"\n📊 Generazione automatica grafici Workload {workload}...")
         if os.path.exists(PLOTTER_SCRIPT):
-            subprocess.run([sys.executable, PLOTTER_SCRIPT])
+            subprocess.run([sys.executable, "-u", PLOTTER_SCRIPT], env=os.environ.copy())
             print(f"✅ Grafici generati in: {os.path.basename(session_dir)}")
         else:
             print(f"❌ Plotter non trovato: {PLOTTER_SCRIPT}")
