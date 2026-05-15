@@ -26,7 +26,7 @@ EVALUATIONS = 90
 REPETITIONS = 5
 FIXED_THREADS = 32
 OPS_PER_THREAD = 80000
-PRELOAD_DOCS = 1000000
+PRELOAD_DOCS = 1200000
 
 # ────────────────────────────── SWITCH AMBIENTE (DIRECT_IO DISABILITATO) ──────────────────────────
 # IS_SERVER = os.environ.get("BENCHMARK_ENV", "wsl") == "server"
