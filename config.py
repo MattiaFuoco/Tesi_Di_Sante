@@ -6,11 +6,12 @@ import time
 import subprocess
 import re
 import signal
+import numpy as np
 
 # ==========================================
 # 1. SPAZIO DI RICERCA GLOBALE
 # ==========================================
-CACHE_SIZES = [0.25, 0.5, 1.0, 2.0, 3.0, 3.5, 4.0]
+CACHE_SIZES = [0.25, 0.5, 1.0, 2.5, 4.0, 5.0, 6.0]
 JOURNAL_INTERVALS = [1, 100, 500]
 COMPRESSORS = ["none", "snappy", "zstd"]
 DISTRIBUTIONS = ["uniform", "zipfian", "latest"]
@@ -18,14 +19,14 @@ DISTRIBUTIONS = ["uniform", "zipfian", "latest"]
 # ==========================================
 # 2. BUDGET GLOBALE PER GLI ALGORITMI
 # ==========================================
-MAX_EVALUATIONS = 90
+EVALUATIONS = 90
 # ==========================================
 # 3. PARAMETRI DEL BENCHMARK
 # ==========================================
 REPETITIONS = 5
 FIXED_THREADS = 16
 OPS_PER_THREAD = 80000
-PRELOAD_DOCS = 220000
+PRELOAD_DOCS = 1000000
 
 # ────────────────────────────── SWITCH AMBIENTE (DIRECT_IO DISABILITATO) ──────────────────────────
 # IS_SERVER = os.environ.get("BENCHMARK_ENV", "wsl") == "server"
@@ -228,7 +229,9 @@ def run_benchmark(distribution):
 # 🚀 MASTER API
 # ==========================================
 def execute_full_test(cache_gb, journal_ms, compressor, dist):
-    """Cold Cache → avvio mongod → benchmark → stop."""
+    """Cold Cache → avvio mongod → benchmark → stop.
+    Ritorna: (avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur)
+    """
     throughputs = []
     durations   = []
 
@@ -253,5 +256,19 @@ def execute_full_test(cache_gb, journal_ms, compressor, dist):
         dur = time.time() - start_time
         throughputs.append(thr)
         durations.append(dur)
+        
+        # Cooldown di 4 secondi tra una run e l'altra
+        print(f"   [Rep {r+1}/{REPETITIONS}] Cooldown: 4 secondi prima della prossima run...")
+        time.sleep(4)
 
-    return sum(throughputs)/len(throughputs), sum(durations)/len(durations)
+    avg_thr = sum(throughputs) / len(throughputs)
+    min_thr = min(throughputs)
+    max_thr = max(throughputs)
+    std_thr = float(np.std(throughputs))
+    
+    avg_dur = sum(durations) / len(durations)
+    min_dur = min(durations)
+    max_dur = max(durations)
+    std_dur = float(np.std(durations))
+
+    return avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur

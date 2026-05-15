@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 # ==========================================
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, Rbf
 try:
     from adjustText import adjust_text
 except ImportError:
@@ -33,20 +33,22 @@ from config import *
 # ==========================================
 # GENERAZIONE GRAFICI MATRICE (3x3) CON STELLINA
 # ==========================================
-def plot_rs_master(csv_file, output_prefix):
+def plot_rs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     df = pd.read_csv(csv_file)
+    if 'throughput' in df.columns and 'throughput_avg' not in df.columns:
+        df = df.rename(columns={'throughput': 'throughput_avg'})
     cache_map = {val: idx for idx, val in enumerate(CACHE_SIZES)}
     journal_map = {val: idx for idx, val in enumerate(JOURNAL_INTERVALS)}
 
     fig, axes = plt.subplots(len(COMPRESSORS), len(DISTRIBUTIONS), figsize=(20, 15))
     fig.suptitle("Random Search - Mappa Topografica Globale\n(Grigio: Tentativi | Bianco: Record intermedi | Stella Dorata: Record Assoluto)", fontsize=20, fontweight='bold')
 
-    vmin = df['throughput'].min()
-    vmax = df['throughput'].max()
+    vmin = global_vmin if global_vmin is not None else df['throughput_avg'].min()
+    vmax = global_vmax if global_vmax is not None else df['throughput_avg'].max()
     contour_plot = None
 
     if not df.empty:
-        max_row = df.loc[df['throughput'].idxmax()]
+        max_row = df.loc[df['throughput_avg'].idxmax()]
         absolute_best_eval_id = max_row['evaluation_id']
     else:
         absolute_best_eval_id = -1
@@ -58,17 +60,42 @@ def plot_rs_master(csv_file, output_prefix):
             df_plane = df_dist[df_dist['compressor'] == comp]
             
             if not df_plane.empty and len(df_plane.groupby(['cache_GB', 'journal_ms'])) >= 2:
-                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput'].mean(numeric_only=True).reset_index()
+                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput_avg'].mean(numeric_only=True).reset_index()
                 x_coords = df_grouped['cache_GB'].map(cache_map).values
                 y_coords = df_grouped['journal_ms'].map(journal_map).values
-                z_vals = df_grouped['throughput'].values
+                z_vals = df_grouped['throughput_avg'].values
 
-                grid_x, grid_y = np.mgrid[0:len(CACHE_SIZES)-1:100j, 0:len(JOURNAL_INTERVALS)-1:100j]
+                grid_x, grid_y = np.mgrid[-0.3:len(CACHE_SIZES)-0.7:100j, -0.3:len(JOURNAL_INTERVALS)-0.7:100j]
                 try:
-                    grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
-                    grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
-                    grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
-                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=20, cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax)
+                    import scipy.ndimage
+                    # Interpolazione "topografica" liscia su TUTTO il piano:
+                    # RBF multiquadric estende organicamente fuori dall'inviluppo
+                    # convesso dei punti, producendo contorni ondeggianti invece
+                    # dei bordi rettangolari di griddata+nearest. Fallback su
+                    # griddata se RBF fallisce (es. punti collineari).
+                    try:
+                        # smooth=0 → RBF passa ESATTAMENTE per i punti misurati.
+                        # Niente smoothing soppresso: le creste/valli reali emergono
+                        # invece di essere "lisciate via" in grandi blob uniformi.
+                        rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
+                        grid_z = rbf(grid_x, grid_y)
+                    except Exception:
+                        try:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='cubic')
+                        except Exception:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
+                        grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
+                        grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
+
+                    # Smoothing minimo: arrotonda i contorni senza cancellare i dettagli
+                    grid_z = scipy.ndimage.gaussian_filter(grid_z, sigma=0.6)
+
+                    # Clipping al range globale + extend='both' su contourf:
+                    # le oscillazioni RBF restano dentro [vmin, vmax] e ogni
+                    # pixel viene colorato (niente "bolle" bianche).
+                    grid_z = np.clip(grid_z, vmin, vmax)
+
+                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=np.linspace(vmin, vmax, 30), cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax, extend='both')
                 except Exception:
                     pass
 
@@ -171,7 +198,10 @@ def main():
     # Scriviamo l'intestazione del CSV, definendo chiaramente le colonne per una successiva analisi e visualizzazione.
     with open(csv_filename, mode='w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["evaluation_id", "cache_GB", "journal_ms", "compressor", "distribution", "repetition", "duration", "throughput", "is_new_best", "elapsed_minutes"])
+        writer.writerow(["evaluation_id", "cache_GB", "journal_ms", "compressor", "distribution", "repetition",
+                "duration_avg", "duration_min", "duration_max", "duration_std",
+                "throughput_avg", "throughput_min", "throughput_max", "throughput_std",
+                "is_new_best", "elapsed_minutes"])
     
     # Iniziamo il processo di esplorazione casuale, tenendo traccia del tempo totale e del miglior risultato globale.
     start_time_global = time.time()
@@ -184,7 +214,7 @@ def main():
                                  for d in range(len(DISTRIBUTIONS))]
     
     # Loop fino a raggiungere il numero massimo di valutazioni o fino a esaurire tutte le combinazioni possibili.
-    for eval_id in range(1, MAX_EVALUATIONS + 1):
+    for eval_id in range(1, EVALUATIONS + 1):
         if not unvisited: 
             print("\n🏁 Tutte le combinazioni possibili sono state esplorate!")
             break
@@ -198,12 +228,12 @@ def main():
         comp = COMPRESSORS[comp_idx]
         dist = DISTRIBUTIONS[d_idx]
         
-        print(f"\n[Test RS {eval_id}/{MAX_EVALUATIONS}] Valuto: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
+        print(f"\n[Test RS {eval_id}/{EVALUATIONS}] Valuto: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
         
         # ====================================================================
         # LA MAGIA DELL'API: Deleghiamo tutto il test a config.py
         # ====================================================================
-        avg_thr, avg_dur = execute_full_test(c_gb, j_ms, comp, dist)
+        avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
         
         print(f"   🚀 THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
         
@@ -219,7 +249,10 @@ def main():
         # Salviamo ogni risultato in modo strutturato nel file CSV, con tutte le informazioni necessarie per analisi e visualizzazioni future.
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow([eval_id, c_gb, j_ms, comp, dist, "mean", avg_dur, avg_thr, is_new_best, round(elapsed_minutes, 2)])
+            writer.writerow([eval_id, c_gb, j_ms, comp, dist, "mean",
+                           avg_dur, round(min_dur, 3), round(max_dur, 3), round(std_dur, 3),
+                           avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
+                           is_new_best, round(elapsed_minutes, 2)])
 
     # Calcoliamo il tempo totale impiegato per completare la Random Search, per avere un'idea del tempo necessario per questo tipo di esplorazione casuale.
     total_minutes = (time.time() - start_time_global) / 60.0
@@ -228,7 +261,9 @@ def main():
     
     print(f"\n📊 Generazione Grafico Mappa Topografica in corso...")
     try:
-        plot_rs_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
+        # (Generazione Heatmap spostata al termine del workload da master_plotter)
+
+        # plot_rs_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
         print(f"✅ Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
     except Exception as e:
         print(f"⚠️ Impossibile generare la heatmap: {e}")

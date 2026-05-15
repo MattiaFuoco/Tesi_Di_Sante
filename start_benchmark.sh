@@ -91,8 +91,8 @@ echo "🔥 Avvio del Benchmark (ENV=$BENCHMARK_ENV)..."
 docker run --rm \
     --name benchmark-all-in-one \
     --privileged \
-    --memory "6g" \
-    --memory-swap "6g" \
+    --memory "8g" \
+    --memory-swap "8g" \
     -e BENCHMARK_ENV="$BENCHMARK_ENV" \
     -e PYTHONUNBUFFERED=1 \
     -e RESULTS_DIR="/app/results" \

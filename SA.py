@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 # ==========================================
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, Rbf
 try:
     from adjustText import adjust_text
 except ImportError:
@@ -39,10 +39,10 @@ T_MIN = 0.001      # (Fine del raffreddamento)
 ITER_PER_TEMP = 1
 
 # 3. IL CALCOLO MAGICO DELL'ALPHA
-# Calcoliamo l'alpha in modo che l'algoritmo tocchi T_MIN esattamente al test MAX_EVALUATIONS
-ALPHA = math.pow((T_MIN / T_INIT), (1.0 / (MAX_EVALUATIONS - 1)))
+# Calcoliamo l'alpha in modo che l'algoritmo tocchi T_MIN esattamente al test EVALUATIONS
+ALPHA = math.pow((T_MIN / T_INIT), (1.0 / (EVALUATIONS - 1)))
 
-print(f"🌡️ Termodinamica Calibrata: Budget={MAX_EVALUATIONS}, Alpha calcolato={ALPHA:.4f}")
+print(f"🌡️ Termodinamica Calibrata: Budget={EVALUATIONS}, Alpha calcolato={ALPHA:.4f}")
 
 # ==========================================
 # FUNZIONI CORE DELL'ALGORITMO (PURISTA)
@@ -69,7 +69,8 @@ def evaluate_configuration_sa(state, visited_points, csv_filename, temp, iter_nu
     # --- MEMOIZATION: Memoria Antica ---
     # Prima di eseguire un test completo, controlliamo se questa configurazione è già stata valutata in passato.
     if state in visited_points:
-        avg_thr, avg_dur = visited_points[state]
+        stats = visited_points[state]
+        avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
         print(f"      -> ⏭️ Stato già noto! Recupero dalla memoria: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
@@ -77,13 +78,16 @@ def evaluate_configuration_sa(state, visited_points, csv_filename, temp, iter_nu
         # indicando che è stata accettata o meno in questa iterazione, e quanto tempo è passato dall'inizio dell'algoritmo.
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow([eval_id, temp, iter_num, c_gb, j_ms, comp, dist, "mean", avg_dur, avg_thr, is_accepted, round(elapsed_minutes, 2)])
+            writer.writerow([eval_id, temp, iter_num, c_gb, j_ms, comp, dist, "mean",
+                           avg_dur, round(min_dur, 3), round(max_dur, 3), round(std_dur, 3),
+                           avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
+                           is_accepted, round(elapsed_minutes, 2)])
         return avg_thr
 
     print(f"\n   [Test SA {eval_id} | T={temp:.1f}] Valuto: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
     
     # Esecuzione Nativa Reale da config.py
-    avg_thr, avg_dur = execute_full_test(c_gb, j_ms, comp, dist)
+    avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
     print(f"   🚀 THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     
@@ -92,11 +96,14 @@ def evaluate_configuration_sa(state, visited_points, csv_filename, temp, iter_nu
     # Registriamo il risultato di questa valutazione nel CSV, insieme a tutti i dettagli e al tempo trascorso dall'inizio dell'algoritmo.
     with open(csv_filename, mode='a', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow([eval_id, temp, iter_num, c_gb, j_ms, comp, dist, "mean", avg_dur, avg_thr, is_accepted, round(elapsed_minutes, 2)])
+        writer.writerow([eval_id, temp, iter_num, c_gb, j_ms, comp, dist, "mean",
+                       avg_dur, round(min_dur, 3), round(max_dur, 3), round(std_dur, 3),
+                       avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
+                       is_accepted, round(elapsed_minutes, 2)])
         
     # Aggiorniamo la memoria con il risultato di questa nuova configurazione,
     # in modo che se la incontreremo di nuovo, potremo recuperare i risultati senza dover eseguire nuovamente il test completo.
-    visited_points[state] = (avg_thr, avg_dur)
+    visited_points[state] = (avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur)
     
     return avg_thr
 
@@ -134,20 +141,22 @@ def get_neighbor(state):
 # ==========================================
 # GENERAZIONE GRAFICI MATRICE (3x3)
 # ==========================================
-def plot_sa_master(csv_file, output_prefix):
+def plot_sa_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     df = pd.read_csv(csv_file)
+    if 'throughput' in df.columns and 'throughput_avg' not in df.columns:
+        df = df.rename(columns={'throughput': 'throughput_avg'})
     cache_map = {val: idx for idx, val in enumerate(CACHE_SIZES)}
     journal_map = {val: idx for idx, val in enumerate(JOURNAL_INTERVALS)}
 
     fig, axes = plt.subplots(len(COMPRESSORS), len(DISTRIBUTIONS), figsize=(25, 18))
     fig.suptitle("Simulated Annealing - Mappa Topografica Globale\n(Grigio: Scartati | Bianco: Stati Accettati | Freccia Blu: Miglioramento | Freccia Arancione: Peggioramento Accettato)", fontsize=20, fontweight='bold')
 
-    vmin = df['throughput'].min()
-    vmax = df['throughput'].max()
+    vmin = global_vmin if global_vmin is not None else df['throughput_avg'].min()
+    vmax = global_vmax if global_vmax is not None else df['throughput_avg'].max()
     contour_plot = None
 
     if not df.empty:
-        max_row = df.loc[df['throughput'].idxmax()]
+        max_row = df.loc[df['throughput_avg'].idxmax()]
         absolute_best_eval_id = max_row['evaluation_id']
     else:
         absolute_best_eval_id = -1
@@ -159,17 +168,42 @@ def plot_sa_master(csv_file, output_prefix):
             df_plane = df_dist[df_dist['compressor'] == comp]
             
             if not df_plane.empty and len(df_plane.groupby(['cache_GB', 'journal_ms'])) >= 2:
-                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput'].mean(numeric_only=True).reset_index()
+                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput_avg'].mean(numeric_only=True).reset_index()
                 x_coords = df_grouped['cache_GB'].map(cache_map).values
                 y_coords = df_grouped['journal_ms'].map(journal_map).values
-                z_vals = df_grouped['throughput'].values
+                z_vals = df_grouped['throughput_avg'].values
 
-                grid_x, grid_y = np.mgrid[0:len(CACHE_SIZES)-1:100j, 0:len(JOURNAL_INTERVALS)-1:100j]
+                grid_x, grid_y = np.mgrid[-0.3:len(CACHE_SIZES)-0.7:100j, -0.3:len(JOURNAL_INTERVALS)-0.7:100j]
                 try:
-                    grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
-                    grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
-                    grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
-                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=20, cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax)
+                    import scipy.ndimage
+                    # Interpolazione "topografica" liscia su TUTTO il piano:
+                    # RBF multiquadric estende organicamente fuori dall'inviluppo
+                    # convesso dei punti, producendo contorni ondeggianti invece
+                    # dei bordi rettangolari di griddata+nearest. Fallback su
+                    # griddata se RBF fallisce (es. punti collineari).
+                    try:
+                        # smooth=0 → RBF passa ESATTAMENTE per i punti misurati.
+                        # Niente smoothing soppresso: le creste/valli reali emergono
+                        # invece di essere "lisciate via" in grandi blob uniformi.
+                        rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
+                        grid_z = rbf(grid_x, grid_y)
+                    except Exception:
+                        try:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='cubic')
+                        except Exception:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
+                        grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
+                        grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
+
+                    # Smoothing minimo: arrotonda i contorni senza cancellare i dettagli
+                    grid_z = scipy.ndimage.gaussian_filter(grid_z, sigma=0.6)
+
+                    # Clipping al range globale + extend='both' su contourf:
+                    # le oscillazioni RBF restano dentro [vmin, vmax] e ogni
+                    # pixel viene colorato (niente "bolle" bianche).
+                    grid_z = np.clip(grid_z, vmin, vmax)
+
+                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=np.linspace(vmin, vmax, 30), cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax, extend='both')
                 except Exception:
                     pass
 
@@ -192,13 +226,13 @@ def plot_sa_master(csv_file, output_prefix):
                     texts.append(t)
 
             # --- PERCORSO DEGLI STATI ACCETTATI (Bianchi, Stella e Frecce Bicolore) ---
-            df_accepted_global = df[df['accepted'] == True].groupby(['evaluation_id', 'cache_GB', 'journal_ms', 'compressor', 'distribution', 'throughput']).mean(numeric_only=True).reset_index().sort_values('evaluation_id')
+            df_accepted_global = df[df['accepted'] == True].groupby(['evaluation_id', 'cache_GB', 'journal_ms', 'compressor', 'distribution', 'throughput_avg']).mean(numeric_only=True).reset_index().sort_values('evaluation_id')
             path_evals = df_accepted_global['evaluation_id'].tolist()
             path_c = df_accepted_global['cache_GB'].tolist()
             path_j = df_accepted_global['journal_ms'].tolist()
             path_comp = df_accepted_global['compressor'].tolist()
             path_dist = df_accepted_global['distribution'].tolist()
-            path_thr = df_accepted_global['throughput'].tolist()
+            path_thr = df_accepted_global['throughput_avg'].tolist()
             
             for i in range(len(path_evals)):
                 if path_comp[i] == comp and path_dist[i] == dist: 
@@ -278,7 +312,10 @@ def main():
     # la throughput ottenuta, se è stata accettata o meno, e quanto tempo è passato dall'inizio dell'algoritmo.
     with open(csv_filename, mode='w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["evaluation_id", "temperature", "iteration", "cache_GB", "journal_ms", "compressor", "distribution", "repetition", "duration", "throughput", "accepted", "elapsed_minutes"])
+        writer.writerow(["evaluation_id", "temperature", "iteration", "cache_GB", "journal_ms", "compressor", "distribution", "repetition",
+                "duration_avg", "duration_min", "duration_max", "duration_std",
+                "throughput_avg", "throughput_min", "throughput_max", "throughput_std",
+                "accepted", "elapsed_minutes"])
 
     start_time_global = time.time()
     visited_points = {}
@@ -298,11 +335,11 @@ def main():
     print(f"\n--- FASE 2: CICLO DI RAFFREDDAMENTO GEOMETRICO (ALPHA={ALPHA}) ---")
     
     # Loop Principale — usiamo un CONTATORE esplicito invece di "current_temp > T_MIN"
-    # perché il confronto floating point è instabile: ALPHA^(MAX_EVALUATIONS-1) non
+    # perché il confronto floating point è instabile: ALPHA^(EVALUATIONS-1) non
     # raggiunge T_MIN esattamente e il while potrebbe girare una volta in più o in meno.
-    # Con il contatore il numero di valutazioni è garantito = MAX_EVALUATIONS (1 iniziale
-    # + MAX_EVALUATIONS-1 nel loop).
-    cooling_steps = MAX_EVALUATIONS - 1   # iterazioni rimanenti dopo la valutazione iniziale
+    # Con il contatore il numero di valutazioni è garantito = EVALUATIONS (1 iniziale
+    # + EVALUATIONS-1 nel loop).
+    cooling_steps = EVALUATIONS - 1   # iterazioni rimanenti dopo la valutazione iniziale
     step_count = 0
 
     while step_count < cooling_steps:
@@ -377,7 +414,9 @@ def main():
     
     print(f"\n📊 Generazione Grafico Mappa Topografica in corso...")
     try:
-        plot_sa_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
+        # (Generazione Heatmap spostata al termine del workload da master_plotter)
+
+        # plot_sa_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
         print(f"✅ Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
     except Exception as e:
         print(f"⚠️ Impossibile generare la heatmap: {e}")

@@ -142,8 +142,16 @@ def main():
 
     algo_data = {}
     gs_max_throughput = None
+    gs_best_min = None
+    gs_best_max = None
     gs_best_config = None  # Configurazione ottima della Grid Search (riquadro sinistra)
     fallback_idx = 0
+
+    def pick_column(columns, preferred_names):
+        for name in preferred_names:
+            if name in columns:
+                return name
+        return None
 
     for csv_file in all_csvs:
         algo_name = get_algorithm_name(os.path.basename(csv_file))
@@ -154,7 +162,12 @@ def main():
             df = pd.read_csv(csv_file, sep=None, engine='python')
             df.columns = df.columns.str.lower().str.strip()
 
-            if 'throughput' not in df.columns: continue
+            throughput_col = pick_column(df.columns, ['throughput_avg', 'throughput'])
+            throughput_min_col = pick_column(df.columns, ['throughput_min'])
+            throughput_max_col = pick_column(df.columns, ['throughput_max'])
+
+            if throughput_col is None:
+                continue
 
             # Trova la colonna degli Step e quella del Tempo
             step_col = next((c for c in ['evaluation_id', 'step', 'generation', 'iteration'] if c in df.columns), None)
@@ -165,23 +178,26 @@ def main():
 
             # Se è Grid Search, salviamo il massimo e la sua configurazione ottima
             if algo_name == "Grid Search":
-                current_max = df['throughput'].max()
+                current_max = float(df[throughput_col].max())
                 if gs_max_throughput is None or current_max > gs_max_throughput:
                     gs_max_throughput = current_max
-                    gs_best_row = df.loc[df['throughput'].idxmax()]
+                    gs_best_row = df.loc[df[throughput_col].idxmax()]
                     gs_best_config = {
                         'compressor': gs_best_row.get('compressor', None),
                         'cache_gb':   gs_best_row.get('cache_gb', None),
                         'journal_ms': gs_best_row.get('journal_ms', None),
                     }
+                    if throughput_min_col and throughput_max_col:
+                        gs_best_min = float(gs_best_row[throughput_min_col])
+                        gs_best_max = float(gs_best_row[throughput_max_col])
                 continue
 
             # Calcolo della curva Anytime (massimo progressivo)
-            df['cummax_throughput'] = df['throughput'].cummax()
+            df['cummax_throughput'] = df[throughput_col].cummax()
 
             # Estrazione migliore configurazione trovata dall'algoritmo
             # (usata per il sottotitolo dinamico del grafico)
-            best_row = df.loc[df['throughput'].idxmax()]
+            best_row = df.loc[df[throughput_col].idxmax()]
             best_config = {
                 'compressor': best_row.get('compressor', None),
                 'cache_gb':   best_row.get('cache_gb', None),
@@ -304,8 +320,13 @@ def main():
                 ax_time.scatter(data['time'], data['y'], color=color,
                                 marker='s', s=30, zorder=5)
 
-    # Aggiunta della Baseline Grid Search (Linea Nera Tratteggiata)
+    # Aggiunta della Baseline Grid Search (Linea Nera Tratteggiata e Ombreggiatura Min/Max)
     if gs_max_throughput is not None:
+        if gs_best_min is not None and gs_best_max is not None:
+            # Ombreggiatura a fascia (min-max) orizzontale
+            ax_steps.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Min/Max', zorder=1)
+            ax_time.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Min/Max', zorder=1)
+
         ax_steps.axhline(y=gs_max_throughput, color='black', linestyle='--',
                          linewidth=2.5, label='Grid Search Max', zorder=3)
         ax_time.axhline(y=gs_max_throughput, color='black', linestyle='--',
@@ -394,6 +415,74 @@ def main():
 
     plt.close('all')
     print(f"✨ [PLOTTER] Grafici salvati in 3 formati (PNG/PDF/SVG) in: {master_dir}")
+
+    # ==========================================
+    # RIGENERAZIONE HEATMAP CON SCALA CROMATICA GLOBALE
+    # ==========================================
+    print(f"\n📊 [MASTER PLOTTER] Generazione Heatmap algoritmi con scala cromatica globale per Workload {workload}...")
+    
+    # 1. Calcolo del min e max globale per il throughput
+    global_vmin = float('inf')
+    global_vmax = float('-inf')
+    
+    for csv_file in all_csvs:
+        try:
+            df_tmp = pd.read_csv(csv_file, sep=None, engine='python')
+            df_tmp.columns = df_tmp.columns.str.lower().str.strip()
+            t_col = pick_column(df_tmp.columns, ['throughput_avg', 'throughput'])
+            if t_col:
+                global_vmin = min(global_vmin, float(df_tmp[t_col].min()))
+                global_vmax = max(global_vmax, float(df_tmp[t_col].max()))
+        except Exception:
+            pass
+
+    if global_vmin == float('inf') or global_vmax == float('-inf'):
+        print("⚠️ Nessun dato valido trovato per calcolare min/max globale. Uso scala locale per algoritmi.")
+        global_vmin = None
+        global_vmax = None
+    else:
+        print(f"   [SCALA] VMIN Globale={global_vmin:.2f}, VMAX Globale={global_vmax:.2f}")
+
+    # 2. Richiamo le funzioni di plot per ogni file
+    import sys
+    import importlib.util
+
+    def run_plot_func(py_file, func_name, csv_path, out_prefix):
+        if not os.path.exists(py_file): return
+        try:
+            spec = importlib.util.spec_from_file_location("module.name", py_file)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules["module.name"] = mod
+            spec.loader.exec_module(mod)
+            plot_func = getattr(mod, func_name, None)
+            if plot_func:
+                plot_func(csv_path, out_prefix, global_vmin=global_vmin, global_vmax=global_vmax)
+        except Exception as e:
+            print(f"⚠️ Errore nel generare la heatmap da {py_file} per il file {csv_path}: {e}")
+
+    import datetime
+    ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
+
+    for csv_file in all_csvs:
+        base_dir_csv = os.path.dirname(csv_file)
+        algo_name = get_algorithm_name(os.path.basename(csv_file))
+        if algo_name == "Unknown Algorithm": continue
+        
+        # Mappatura algoritmi per avviare lo script giusto
+        if algo_name == "Grid Search":
+            run_plot_func(os.path.join(os.getcwd(), 'GS.py'), 'plot_gs_master', csv_file, os.path.join(base_dir_csv, f"HEATMAP_WL_{workload}_{ts}"))
+        elif algo_name == "Random Search":
+            run_plot_func(os.path.join(os.getcwd(), 'RS.py'), 'plot_rs_master', csv_file, os.path.join(base_dir_csv, f"HEATMAP_WL_{workload}_{ts}"))
+        elif algo_name == "Evolutionary Algorithm":
+            run_plot_func(os.path.join(os.getcwd(), 'EA.py'), 'plot_ea_master', csv_file, os.path.join(base_dir_csv, f"HEATMAP_WL_{workload}_{ts}"))
+        elif algo_name == "Simulated Annealing":
+            run_plot_func(os.path.join(os.getcwd(), 'SA.py'), 'plot_sa_master', csv_file, os.path.join(base_dir_csv, f"HEATMAP_WL_{workload}_{ts}"))
+        elif algo_name == "Hill Climbing":
+            run_plot_func(os.path.join(os.getcwd(), 'HC.py'), 'plot_steepest_hc_master', csv_file, os.path.join(base_dir_csv, f"Analisi_{ts}"))
+        elif algo_name == "Bayesian Optimization":
+            run_plot_func(os.path.join(os.getcwd(), 'BO.py'), 'plot_bo_master', csv_file, os.path.join(base_dir_csv, f"HEATMAP_WL_{workload}_{ts}"))
+        elif algo_name == "Coordinate Search":
+            run_plot_func(os.path.join(os.getcwd(), 'CS.py'), 'plot_cs_master', csv_file, os.path.join(base_dir_csv, f"Analisi_WL_{workload}_{ts}"))
 
 if __name__ == "__main__":
     main()

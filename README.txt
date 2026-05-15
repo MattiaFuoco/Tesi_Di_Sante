@@ -100,7 +100,7 @@ L'intero framework è governato da un file centrale (config.py). Per garantire
 la massima equità accademica e un confronto "ad armi pari", tutti gli algoritmi
 euristici (Random Search, Simulated Annealing, Evolutionary Algorithm, Bayesian
 Optimization, Coordinate Search, Hill Climbing) condividono un budget di
-valutazioni dinamico e centralizzato (MAX_EVALUATIONS = 81, esattamente la metà
+valutazioni dinamico e centralizzato (EVALUATIONS = 81, esattamente la metà
 delle 162 configurazioni totali esplorate dalla Grid Search).
 Modificando questo singolo parametro, tutti gli algoritmi ricalcoleranno
 automaticamente la propria termodinamica, i cicli evolutivi o le fasi esplorative.

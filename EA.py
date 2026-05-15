@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 # ==========================================
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, Rbf
 try:
     from adjustText import adjust_text
 except ImportError:
@@ -32,14 +32,14 @@ from config import *
 
 # PARAMETRI DELL'ALGORITMO GENETICO (PURI)
 # Dimensione della popolazione per generazione
-POPULATION_SIZE = max(4, MAX_EVALUATIONS // 8)    # (se dispari-->arrotondameto per difetto)
-# Partirà una nuova generazione ogni volta che avremo completato la valutazione di POPULATION_SIZE individui, fino a raggiungere il budget totale di MAX_EVALUATIONS.
-# Quindi se MAX_EVALUATIONS è dispari, l'ultima generazione potrebbe essere parziale, ma non supererà mai il budget totale.
+POPULATION_SIZE = max(4, EVALUATIONS // 8)    # (se dispari-->arrotondameto per difetto)
+# Partirà una nuova generazione ogni volta che avremo completato la valutazione di POPULATION_SIZE individui, fino a raggiungere il budget totale di EVALUATIONS.
+# Quindi se EVALUATIONS è dispari, l'ultima generazione potrebbe essere parziale, ma non supererà mai il budget totale.
 # In questo modo garantiamo un numero di generazioni dinamico e adattivo in base al budget definito in config.py. 
 
 # Calcoliamo dinamicamente le generazioni in base al budget di config.py
-# Usiamo // per la divisione intera (es. 40 // 5 = 8 generazioni)
-GENERATIONS = MAX_EVALUATIONS // POPULATION_SIZE     
+# Usiamo la divisione con arrotondamento per eccesso
+GENERATIONS = (EVALUATIONS + POPULATION_SIZE - 1) // POPULATION_SIZE     
 
 MUTATION_RATE = 0.40     # Tasso di mutazione FISSO, come in natura
 
@@ -67,20 +67,24 @@ def evaluate_individual(individual, visited_points, csv_filename, gen_num, eval_
     # --- MEMOIZATION: Memoria Genetica ---
     # Se questo identico DNA è già nato in passato, conosciamo già la sua forza.
     if individual in visited_points:
-        avg_thr, avg_dur = visited_points[individual]
+        stats = visited_points[individual]
+        avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
         print(f"      -> ⏭️ DNA già noto! Recupero dalla memoria genetica: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
         # Salviamo comunque il risultato nel CSV, indicando che è un punto già visitato (is_best_of_gen=False).
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow([gen_num, eval_id, c_gb, j_ms, comp, dist, "mean", avg_dur, avg_thr, False, round(elapsed_minutes, 2)])
+            writer.writerow([gen_num, eval_id, c_gb, j_ms, comp, dist, "mean",
+                           avg_dur, round(min_dur, 3), round(max_dur, 3), round(std_dur, 3),
+                           avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
+                           False, round(elapsed_minutes, 2)])
         return avg_thr
     
     print(f"\n   [Gen {gen_num} | Ind {eval_id}] Valuto: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
     
     # Esecuzione nativa tramite la MASTER API in config.py
-    avg_thr, avg_dur = execute_full_test(c_gb, j_ms, comp, dist)
+    avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
     print(f"   🚀 THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     
@@ -89,10 +93,13 @@ def evaluate_individual(individual, visited_points, csv_filename, gen_num, eval_
     # Salviamo il risultato nel CSV, indicando che è un punto nuovo (is_best_of_gen=False).
     with open(csv_filename, mode='a', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow([gen_num, eval_id, c_gb, j_ms, comp, dist, "mean", avg_dur, avg_thr, False, round(elapsed_minutes, 2)])
+        writer.writerow([gen_num, eval_id, c_gb, j_ms, comp, dist, "mean",
+                       avg_dur, round(min_dur, 3), round(max_dur, 3), round(std_dur, 3),
+                       avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
+                       False, round(elapsed_minutes, 2)])
         
     # Aggiorniamo la memoria genetica con questo nuovo punto visitato, così da evitare di ripetere test già fatti in futuro.
-    visited_points[individual] = (avg_thr, avg_dur)
+    visited_points[individual] = (avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur)
     
     return avg_thr
 
@@ -131,20 +138,22 @@ def mutate(individual):
 # ==========================================
 # GENERAZIONE GRAFICI MATRICE (3x3)
 # ==========================================
-def plot_ea_master(csv_file, output_prefix):
+def plot_ea_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     df = pd.read_csv(csv_file)
+    if 'throughput' in df.columns and 'throughput_avg' not in df.columns:
+        df = df.rename(columns={'throughput': 'throughput_avg'})
     cache_map = {val: idx for idx, val in enumerate(CACHE_SIZES)}
     journal_map = {val: idx for idx, val in enumerate(JOURNAL_INTERVALS)}
 
     fig, axes = plt.subplots(len(COMPRESSORS), len(DISTRIBUTIONS), figsize=(20, 15))
     fig.suptitle("Evolutionary Algorithm - Mappa Topografica Globale\n(Grigio: Specie Estinte | Bianco: Individuo Alfa | Frecce: Salti Generazionali)", fontsize=20, fontweight='bold')
 
-    vmin = df['throughput'].min()
-    vmax = df['throughput'].max()
+    vmin = global_vmin if global_vmin is not None else df['throughput_avg'].min()
+    vmax = global_vmax if global_vmax is not None else df['throughput_avg'].max()
     contour_plot = None
 
     if not df.empty:
-        max_row = df.loc[df['throughput'].idxmax()]
+        max_row = df.loc[df['throughput_avg'].idxmax()]
         absolute_best_eval_id = max_row['evaluation_id']
     else:
         absolute_best_eval_id = -1
@@ -156,17 +165,42 @@ def plot_ea_master(csv_file, output_prefix):
             df_plane = df_dist[df_dist['compressor'] == comp]
             
             if not df_plane.empty and len(df_plane.groupby(['cache_GB', 'journal_ms'])) >= 2:
-                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput'].mean(numeric_only=True).reset_index()
+                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput_avg'].mean(numeric_only=True).reset_index()
                 x_coords = df_grouped['cache_GB'].map(cache_map).values
                 y_coords = df_grouped['journal_ms'].map(journal_map).values
-                z_vals = df_grouped['throughput'].values
+                z_vals = df_grouped['throughput_avg'].values
 
-                grid_x, grid_y = np.mgrid[0:len(CACHE_SIZES)-1:100j, 0:len(JOURNAL_INTERVALS)-1:100j]
+                grid_x, grid_y = np.mgrid[-0.3:len(CACHE_SIZES)-0.7:100j, -0.3:len(JOURNAL_INTERVALS)-0.7:100j]
                 try:
-                    grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
-                    grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
-                    grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
-                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=20, cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax)
+                    import scipy.ndimage
+                    # Interpolazione "topografica" liscia su TUTTO il piano:
+                    # RBF multiquadric estende organicamente fuori dall'inviluppo
+                    # convesso dei punti, producendo contorni ondeggianti invece
+                    # dei bordi rettangolari di griddata+nearest. Fallback su
+                    # griddata se RBF fallisce (es. punti collineari).
+                    try:
+                        # smooth=0 → RBF passa ESATTAMENTE per i punti misurati.
+                        # Niente smoothing soppresso: le creste/valli reali emergono
+                        # invece di essere "lisciate via" in grandi blob uniformi.
+                        rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
+                        grid_z = rbf(grid_x, grid_y)
+                    except Exception:
+                        try:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='cubic')
+                        except Exception:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
+                        grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
+                        grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
+
+                    # Smoothing minimo: arrotonda i contorni senza cancellare i dettagli
+                    grid_z = scipy.ndimage.gaussian_filter(grid_z, sigma=0.6)
+
+                    # Clipping al range globale + extend='both' su contourf:
+                    # le oscillazioni RBF restano dentro [vmin, vmax] e ogni
+                    # pixel viene colorato (niente "bolle" bianche).
+                    grid_z = np.clip(grid_z, vmin, vmax)
+
+                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=np.linspace(vmin, vmax, 30), cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax, extend='both')
                 except Exception:
                     pass
 
@@ -271,7 +305,10 @@ def main():
     # Creazione del file CSV con intestazione, pronto per accogliere i risultati di tutte le valutazioni degli individui nel corso delle generazioni.
     with open(csv_filename, mode='w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["generation", "evaluation_id", "cache_GB", "journal_ms", "compressor", "distribution", "repetition", "duration", "throughput", "is_best_of_gen", "elapsed_minutes"])
+        writer.writerow(["generation", "evaluation_id", "cache_GB", "journal_ms", "compressor", "distribution", "repetition",
+                "duration_avg", "duration_min", "duration_max", "duration_std",
+                "throughput_avg", "throughput_min", "throughput_max", "throughput_std",
+                "is_best_of_gen", "elapsed_minutes"])
 
     start_time_global = time.time()
     
@@ -300,8 +337,8 @@ def main():
         for ind in population:
 
             # Hard stop di sicurezza nel caso in cui il budget non sia un multiplo perfetto
-            if eval_id > MAX_EVALUATIONS:
-                print(f"\n🛑 Raggiunto il limite globale ({MAX_EVALUATIONS}). Fine evoluzione anticipata.")
+            if eval_id > EVALUATIONS:
+                print(f"\n🛑 Raggiunto il limite globale ({EVALUATIONS}). Fine evoluzione anticipata.")
                 break
 
             thr = evaluate_individual(ind, visited_points, csv_filename, gen, eval_id, start_time_global)
@@ -317,13 +354,15 @@ def main():
             
         print(f"   🏆 L'ALFA della Gen {gen} è Ind{best_gen_eval_id} con {best_gen_thr:.2f} ops/sec")
         
-        # Aggiorniamo il CSV indicando chi è l'Alfa
-        df = pd.read_csv(csv_filename)
-        df.loc[df['evaluation_id'] == best_gen_eval_id, 'is_best_of_gen'] = True
-        df.to_csv(csv_filename, index=False)
+        if best_gen_eval_id != -1:
+            # Aggiorniamo il CSV indicando chi è l'Alfa
+            df = pd.read_csv(csv_filename)
+            df.loc[df['evaluation_id'] == best_gen_eval_id, 'is_best_of_gen'] = True
+            df.to_csv(csv_filename, index=False)
         
-        # Se è l'ultima generazione, si ferma l'evoluzione
-        if gen == GENERATIONS: break
+        # Se abbiamo raggiunto il limite di task, si ferma l'evoluzione globale
+        if eval_id > EVALUATIONS or gen == GENERATIONS: 
+            break
             
         print(f"   💞 Torneo, Accoppiamento e Mutazione (Tasso Fisso: {MUTATION_RATE})...")
         
@@ -366,7 +405,9 @@ def main():
     
     print(f"\n📊 Generazione Grafico Mappa Topografica in corso...")
     try:
-        plot_ea_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
+        # (Generazione Heatmap spostata al termine del workload da master_plotter)
+
+        # plot_ea_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
         print(f"✅ Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
     except Exception as e:
         print(f"⚠️ Impossibile generare la heatmap: {e}")

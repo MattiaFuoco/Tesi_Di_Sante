@@ -5,6 +5,7 @@ import os
 import time
 import datetime
 import csv
+import random
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -14,7 +15,7 @@ warnings.filterwarnings("ignore")
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, Rbf
 try:
     from adjustText import adjust_text
 except ImportError:
@@ -40,46 +41,59 @@ evaluations_done = 0
 # Questa funzione è il cuore dell'esplorazione: valuta un punto specifico, ma prima controlla se è già stato valutato (memoization).
 # Se è già stato valutato, recupera il risultato dalla memoria e lo registra nel CSV senza dover rieseguire il test.
 # Altrimenti, esegue il test completo delegando al configuratore centrale, registra il risultato e lo memorizza.
-def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, csv_filename, step_num, start_time_global, is_center=False):
+def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_ids, csv_filename, step_num, start_time_global, is_center=False):
     global evaluations_done
     
     c_gb = CACHE_SIZES[c_idx]
     j_ms = JOURNAL_INTERVALS[j_idx]
     comp = COMPRESSORS[comp_idx]
     dist = DISTRIBUTIONS[d_idx]
+    key  = (c_idx, j_idx, comp_idx, d_idx)
     
     # --- MEMOIZATION ---
-    if (c_idx, j_idx, comp_idx, d_idx) in visited_points:
-        avg_thr, avg_dur = visited_points[(c_idx, j_idx, comp_idx, d_idx)]
+    if key in visited_points:
+        stats = visited_points[key]
+        avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
         print(f"      -> ⏭️ Già esplorato! Recupero memoria: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
-        # Registrazione nel CSV anche per i punti di memoria, con is_path=False (non è un punto del percorso, ma è comunque esplorato)
+        evaluations_done += 1
+        
+        # Registrazione nel CSV anche per i punti di memoria, con is_path=False
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow([evaluations_done, step_num, c_gb, j_ms, comp, dist, "mean", avg_dur, avg_thr, False, round(elapsed_minutes, 2)])
-        return avg_thr
+            writer.writerow([evaluations_done, step_num, c_gb, j_ms, comp, dist, "mean",
+                           avg_dur, round(min_dur, 3), round(max_dur, 3), round(std_dur, 3),
+                           avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
+                           False, round(elapsed_minutes, 2)])
+        # Restituiamo anche l'eval_id ORIGINALE del punto (non quello da memoization)
+        return avg_thr, visited_eval_ids[key]
     
     evaluations_done += 1
+    current_eval_id = evaluations_done
+    visited_eval_ids[key] = current_eval_id   # ← registra l'eval_id originale
     
     # Indico se è il punto di partenza (PUNTO BASE) o un punto di esplorazione lungo un asse (ESPLORAZIONE ASSE).
     tipo_punto = "PUNTO BASE" if is_center else "ESPLORAZIONE ASSE"
-    print(f"\n   [{tipo_punto} - Val. {evaluations_done}/{MAX_EVALUATIONS}] Testo: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
+    print(f"\n   [{tipo_punto} - Val. {current_eval_id}/{EVALUATIONS}] Testo: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
     
     # Il configuratore si occuperà di eseguire i vari run, calcolare la media e restituire i risultati.
-    avg_thr, avg_dur = execute_full_test(c_gb, j_ms, comp, dist)
+    avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
     print(f"   🚀 THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     elapsed_minutes = (time.time() - start_time_global) / 60.0
     
-    # Registrazione nel CSV (anche per i punti di memoria, con is_path=False)
+    # Registrazione nel CSV
     with open(csv_filename, mode='a', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow([evaluations_done, step_num, c_gb, j_ms, comp, dist, "mean", avg_dur, avg_thr, False, round(elapsed_minutes, 2)])
+        writer.writerow([current_eval_id, step_num, c_gb, j_ms, comp, dist, "mean",
+                       avg_dur, round(min_dur, 3), round(max_dur, 3), round(std_dur, 3),
+                       avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
+                       False, round(elapsed_minutes, 2)])
 
     # Memorizzo il risultato per evitare future valutazioni dello stesso punto (memoization)
-    visited_points[(c_idx, j_idx, comp_idx, d_idx)] = (avg_thr, avg_dur)
-    return avg_thr
+    visited_points[key] = (avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur)
+    return avg_thr, current_eval_id
 
 # ==========================================
 # LOGICA DI SPOSTAMENTO (UN SINGOLO ASSE ALLA VOLTA)
@@ -87,43 +101,50 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, csv_filename, 
 # Questa funzione restituisce solo i vicini lungo l'asse specificato, tenendo fissi gli altri 3.
 # In questo modo, quando esploro un asse, mi concentro solo su quel cambiamento specifico.
 def get_axis_neighbors(c_idx, j_idx, comp_idx, d_idx, axis):
-    """Restituisce solo i vicini muovendosi lungo l'asse specificato, tenendo fissi gli altri 3."""
-
-    # Per ogni asse, posso muovermi in due direzioni (se non sono ai bordi). Restituisco solo quei vicini.
+    """Restituisce TUTTI i punti lungo l'asse specificato (escluso il punto corrente),
+    tenendo fissi gli altri 3 parametri. Questo è il comportamento corretto della
+    Coordinate Search: esplora l'intero asse prima di decidere dove spostarsi."""
+    
     neighbors = []
     if axis == 0:   # Asse Cache
-        if c_idx > 0: neighbors.append((c_idx - 1, j_idx, comp_idx, d_idx))
-        if c_idx < len(CACHE_SIZES) - 1: neighbors.append((c_idx + 1, j_idx, comp_idx, d_idx))
+        for i in range(len(CACHE_SIZES)):
+            if i != c_idx:
+                neighbors.append((i, j_idx, comp_idx, d_idx))
     elif axis == 1: # Asse Journal
-        if j_idx > 0: neighbors.append((c_idx, j_idx - 1, comp_idx, d_idx))
-        if j_idx < len(JOURNAL_INTERVALS) - 1: neighbors.append((c_idx, j_idx + 1, comp_idx, d_idx))
+        for i in range(len(JOURNAL_INTERVALS)):
+            if i != j_idx:
+                neighbors.append((c_idx, i, comp_idx, d_idx))
     elif axis == 2: # Asse Compressore
-        if comp_idx > 0: neighbors.append((c_idx, j_idx, comp_idx - 1, d_idx))
-        if comp_idx < len(COMPRESSORS) - 1: neighbors.append((c_idx, j_idx, comp_idx + 1, d_idx))
+        for i in range(len(COMPRESSORS)):
+            if i != comp_idx:
+                neighbors.append((c_idx, j_idx, i, d_idx))
     elif axis == 3: # Asse Distribuzione
-        if d_idx > 0: neighbors.append((c_idx, j_idx, comp_idx, d_idx - 1))
-        if d_idx < len(DISTRIBUTIONS) - 1: neighbors.append((c_idx, j_idx, comp_idx, d_idx + 1))
+        for i in range(len(DISTRIBUTIONS)):
+            if i != d_idx:
+                neighbors.append((c_idx, j_idx, comp_idx, i))
     return neighbors
 
 # ==========================================
 # GENERAZIONE GRAFICI MATRICE (3x3)
 # ==========================================
-def plot_cs_master(csv_file, output_prefix):
+def plot_cs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     df = pd.read_csv(csv_file)
+    if 'throughput' in df.columns and 'throughput_avg' not in df.columns:
+        df = df.rename(columns={'throughput': 'throughput_avg'})
     cache_map = {val: idx for idx, val in enumerate(CACHE_SIZES)}
     journal_map = {val: idx for idx, val in enumerate(JOURNAL_INTERVALS)}
 
     fig, axes = plt.subplots(len(COMPRESSORS), len(DISTRIBUTIONS), figsize=(20, 15))
     fig.suptitle(f"Coordinate Search - Mappa Topografica (Workload {WORKLOAD_TYPE})\n(Punti grigi = Esplorati e scartati | Punti Bianchi = Percorso Vetta)", fontsize=20, fontweight='bold')
 
-    vmin = df['throughput'].min()
-    vmax = df['throughput'].max()
+    vmin = global_vmin if global_vmin is not None else df['throughput_avg'].min()
+    vmax = global_vmax if global_vmax is not None else df['throughput_avg'].max()
     contour_plot = None
 
     # Identifica lo step del percorso con throughput assoluto massimo (per la stellina)
     df_path_all = df[df['is_path'] == True]
     if not df_path_all.empty:
-        best_path_row = df_path_all.loc[df_path_all['throughput'].idxmax()]
+        best_path_row = df_path_all.loc[df_path_all['throughput_avg'].idxmax()]
         absolute_best_step = int(best_path_row['step'])
     else:
         absolute_best_step = -1
@@ -135,17 +156,42 @@ def plot_cs_master(csv_file, output_prefix):
             df_plane = df_dist[df_dist['compressor'] == comp]
             
             if not df_plane.empty and len(df_plane.groupby(['cache_GB', 'journal_ms'])) >= 2:
-                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput'].mean(numeric_only=True).reset_index()
+                df_grouped = df_plane.groupby(['cache_GB', 'journal_ms'])['throughput_avg'].mean(numeric_only=True).reset_index()
                 x_coords = df_grouped['cache_GB'].map(cache_map).values
                 y_coords = df_grouped['journal_ms'].map(journal_map).values
-                z_vals = df_grouped['throughput'].values
+                z_vals = df_grouped['throughput_avg'].values
 
-                grid_x, grid_y = np.mgrid[0:len(CACHE_SIZES)-1:100j, 0:len(JOURNAL_INTERVALS)-1:100j]
+                grid_x, grid_y = np.mgrid[-0.3:len(CACHE_SIZES)-0.7:100j, -0.3:len(JOURNAL_INTERVALS)-0.7:100j]
                 try:
-                    grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
-                    grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
-                    grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
-                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=20, cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax)
+                    import scipy.ndimage
+                    # Interpolazione "topografica" liscia su TUTTO il piano:
+                    # RBF multiquadric estende organicamente fuori dall'inviluppo
+                    # convesso dei punti, producendo contorni ondeggianti invece
+                    # dei bordi rettangolari di griddata+nearest. Fallback su
+                    # griddata se RBF fallisce (es. punti collineari).
+                    try:
+                        # smooth=0 → RBF passa ESATTAMENTE per i punti misurati.
+                        # Niente smoothing soppresso: le creste/valli reali emergono
+                        # invece di essere "lisciate via" in grandi blob uniformi.
+                        rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
+                        grid_z = rbf(grid_x, grid_y)
+                    except Exception:
+                        try:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='cubic')
+                        except Exception:
+                            grid_z = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='linear')
+                        grid_z_nearest = griddata((x_coords, y_coords), z_vals, (grid_x, grid_y), method='nearest')
+                        grid_z = np.where(np.isnan(grid_z), grid_z_nearest, grid_z)
+
+                    # Smoothing minimo: arrotonda i contorni senza cancellare i dettagli
+                    grid_z = scipy.ndimage.gaussian_filter(grid_z, sigma=0.6)
+
+                    # Clipping al range globale + extend='both' su contourf:
+                    # le oscillazioni RBF restano dentro [vmin, vmax] e ogni
+                    # pixel viene colorato (niente "bolle" bianche).
+                    grid_z = np.clip(grid_z, vmin, vmax)
+
+                    contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=np.linspace(vmin, vmax, 30), cmap='RdYlGn', alpha=0.5, vmin=vmin, vmax=vmax, extend='both')
                 except Exception:
                     pass
 
@@ -162,41 +208,68 @@ def plot_cs_master(csv_file, output_prefix):
             df_path = df[df['is_path'] == True].sort_values('step')
             path_points = df_path.groupby('step').first().reset_index()
             
-            for i in range(len(path_points)):
-                row = path_points.iloc[i]
-                if row['compressor'] == comp and row['distribution'] == dist:
-                    px = cache_map[row['cache_GB']]
-                    py = journal_map[row['journal_ms']]
+            # Filtra solo i punti di questo pannello
+            panel_pts = path_points[
+                (path_points['compressor'] == comp) & (path_points['distribution'] == dist)
+            ].copy()
+
+            # ── Raggruppa per posizione (px, py) per gestire sovrapposizioni ──
+            from collections import defaultdict
+            pos_to_rows = defaultdict(list)
+            for _, row in panel_pts.iterrows():
+                px = cache_map[row['cache_GB']]
+                py = journal_map[row['journal_ms']]
+                pos_to_rows[(px, py)].append(row)
+
+            # ── Disegna nodi (con offset orizzontale se sovrapposti) ──
+            label_positions = {}   # step_num -> (lx, ly) per le frecce
+            for (px, py), rows_at_pos in pos_to_rows.items():
+                n = len(rows_at_pos)
+                for k, row in enumerate(rows_at_pos):
                     step_num = int(row['step'])
-                    
                     is_best = (step_num == absolute_best_step)
 
+                    # Offset orizzontale: distribuisce i punti sovrapposti
+                    lx = px + (k - (n - 1) / 2) * 0.22 if n > 1 else px
+                    ly = py
+                    label_positions[step_num] = (lx, ly)
+
                     if is_best:
-                        # Stella dorata — annotate ancorato al punto, NON in texts
-                        # così adjust_text non lo sposta mai fuori dalla stella.
-                        ax.scatter(px, py, color='gold', marker='*', s=1200, zorder=12, edgecolors='black', linewidth=1.5)
-                        ax.annotate(f"S{step_num}", xy=(px, py),
+                        is_best_restart = bool(row.get('is_restart', False)) if 'is_restart' in df.columns else False
+                        star_edge = 'magenta' if is_best_restart else 'black'
+                        ax.scatter(lx, ly, color='gold', marker='*', s=1200, zorder=12,
+                                    edgecolors=star_edge, linewidth=1.5)
+                        ax.annotate(f"S{step_num}", xy=(lx, ly),
                                     ha='center', va='center',
                                     fontsize=7, fontweight='bold', color='black',
-                                    xycoords='data', zorder=14,
-                                    annotation_clip=False)
-                        # NON aggiungiamo a texts → adjust_text non lo tocca
+                                    xycoords='data', zorder=14, annotation_clip=False)
                     else:
-                        ax.scatter(px, py, color='white', s=150, zorder=8, edgecolors='black', linewidth=1.5)
-                        t = ax.text(px, py, f"S{step_num}", ha='center', va='center',
+                        is_this_restart = bool(row.get('is_restart', False)) if 'is_restart' in df.columns else False
+                        node_color = 'magenta' if is_this_restart else 'white'
+                        ax.scatter(lx, ly, color=node_color, s=150, zorder=8,
+                                   edgecolors='black', linewidth=1.5)
+                        t = ax.text(lx, ly, f"S{step_num}", ha='center', va='center',
                                     fontsize=10, fontweight='bold', color='black', zorder=10,
-                                    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="black", lw=1, alpha=0.9))
+                                    bbox=dict(boxstyle="round,pad=0.2", fc=node_color, ec="black", lw=1, alpha=0.9))
                         texts.append(t)
-                    
-                    if i < len(path_points) - 1:
-                        next_row = path_points.iloc[i+1]
-                        if next_row['compressor'] == comp and next_row['distribution'] == dist:
-                            nx = cache_map[next_row['cache_GB']]
-                            ny = journal_map[next_row['journal_ms']]
-                            if px != nx or py != ny:
-                                ax.annotate("", xy=(nx, ny), xytext=(px, py), 
-                                            arrowprops=dict(arrowstyle="-|>,head_length=0.9,head_width=0.4", 
-                                                            color="darkblue", lw=2.5, shrinkA=12, shrinkB=12), zorder=6)
+
+            # ── Frecce tra step consecutivi (usa posizioni reali px/py, non offset) ──
+            panel_steps = sorted(panel_pts['step'].tolist())
+            for idx in range(len(panel_steps) - 1):
+                s_cur  = panel_steps[idx]
+                s_next = panel_steps[idx + 1]
+                r_cur  = panel_pts[panel_pts['step'] == s_cur].iloc[0]
+                r_next = panel_pts[panel_pts['step'] == s_next].iloc[0]
+
+                px, py = cache_map[r_cur['cache_GB']],  journal_map[r_cur['journal_ms']]
+                nx, ny = cache_map[r_next['cache_GB']], journal_map[r_next['journal_ms']]
+
+                is_restart_jump = bool(r_next.get('is_restart', False)) if 'is_restart' in df.columns else False
+
+                if (px != nx or py != ny) and not is_restart_jump:
+                    ax.annotate("", xy=(nx, ny), xytext=(px, py),
+                                arrowprops=dict(arrowstyle="-|>,head_length=0.9,head_width=0.4",
+                                                color="darkblue", lw=2.5, shrinkA=12, shrinkB=12), zorder=6)
 
             if texts:
                 adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color='gray', lw=0.5, alpha=0.7))
@@ -244,7 +317,10 @@ def main():
 
     with open(csv_filename, mode='w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["evaluation_id", "step", "cache_GB", "journal_ms", "compressor", "distribution", "repetition", "duration", "throughput", "is_path", "elapsed_minutes"])
+        writer.writerow(["evaluation_id", "step", "cache_GB", "journal_ms", "compressor", "distribution", "repetition",
+                        "duration_avg", "duration_min", "duration_max", "duration_std",
+                        "throughput_avg", "throughput_min", "throughput_max", "throughput_std",
+                        "is_path", "elapsed_minutes"])
 
     print(f"🚀 PARTENZA ALGORITMO: COORDINATE SEARCH (Workload {WORKLOAD_TYPE})")
 
@@ -252,6 +328,7 @@ def main():
 
     # Per tenere traccia dei punti già valutati e dei risultati, utilizzo una struttura di memoization.
     visited_points = {}
+    visited_eval_ids = {}   # (c_idx,j_idx,comp_idx,d_idx) → evaluation_id originale
     final_path = []
     asse_nomi = ["Cache", "Journal", "Compressore", "Distribuzione"]
     
@@ -262,25 +339,23 @@ def main():
     curr_d = len(DISTRIBUTIONS) // 2     
     
     step = 1
+    is_restart_flag = False
     print(f"\n🎯 VALUTAZIONE PUNTO DI PARTENZA")
     # Valuto il punto centrale e lo registro come primo punto del percorso (is_path=True)
-    best_thr = evaluate_point(curr_c, curr_j, curr_comp, curr_d, visited_points, csv_filename, step, start_time_global, is_center=True)
+    best_thr, s1_eval_id = evaluate_point(curr_c, curr_j, curr_comp, curr_d, visited_points, visited_eval_ids, csv_filename, step, start_time_global, is_center=True)
     # Registro il punto centrale come primo punto del percorso (is_path=True)
-    final_path.append((step, CACHE_SIZES[curr_c], JOURNAL_INTERVALS[curr_j], COMPRESSORS[curr_comp], DISTRIBUTIONS[curr_d]))
+    final_path.append((step, CACHE_SIZES[curr_c], JOURNAL_INTERVALS[curr_j], COMPRESSORS[curr_comp], DISTRIBUTIONS[curr_d], is_restart_flag, s1_eval_id))
     
-    # Setto una variabile per tenere traccia se c'è stato un miglioramento in questo ciclo completo sugli assi
-    improvement_in_cycle = True
-    
-    # Il ciclo esterno continua finché c'è un miglioramento in almeno uno degli assi.
-    # Se in un ciclo completo sugli assi non c'è miglioramento, significa che abbiamo raggiunto un ottimo locale.
-    while improvement_in_cycle and evaluations_done < MAX_EVALUATIONS:
-        improvement_in_cycle = False
+    # Il ciclo esterno continua finché non raggiungiamo il limite massimo di valutazioni (budget).
+    while evaluations_done < EVALUATIONS:
         print(f"\n" + "="*50)
-        print(f"🔄 INIZIO NUOVO CICLO SUGLI ASSI (Valutazioni: {evaluations_done}/{MAX_EVALUATIONS})")
+        print(f"🔄 INIZIO NUOVO CICLO SUGLI ASSI (Valutazioni: {evaluations_done}/{EVALUATIONS})")
         print("="*50)
          
+        improvement_in_cycle = False
+
         for axis in range(4): # Cicla attraverso gli assi: 0=Cache, 1=Journal, 2=Comp, 3=Dist
-            if evaluations_done >= MAX_EVALUATIONS:
+            if evaluations_done >= EVALUATIONS:
                 break
                 
             print(f"\n   🔍 Esploro asse: {asse_nomi[axis]} (tenendo fissi gli altri)...")
@@ -294,12 +369,12 @@ def main():
             
             # Esploro i vicini lungo QUESTO asse specifico, valutando ognuno e confrontando con il miglior risultato trovato finora.
             for n_c, n_j, n_comp, n_d in neighbors:
-                if evaluations_done >= MAX_EVALUATIONS:
-                    print("⚠️ Limite di valutazioni raggiunto.")
+                if evaluations_done >= EVALUATIONS:
+                    print(f"⚠️ Raggiunto il limite massimo di valutazioni (Budget = {EVALUATIONS}). Interruzione forzata.")
                     break
                     
                 # Valuto il punto vicino e ottengo la sua throughput media
-                thr = evaluate_point(n_c, n_j, n_comp, n_d, visited_points, csv_filename, step, start_time_global, is_center=False)
+                thr, _ = evaluate_point(n_c, n_j, n_comp, n_d, visited_points, visited_eval_ids, csv_filename, step, start_time_global, is_center=False)
                 
                 # Se trovo un punto migliore lungo questo specifico asse, lo segno
                 if thr > axis_best_thr:
@@ -307,28 +382,63 @@ def main():
                     axis_best_coords = (n_c, n_j, n_comp, n_d)
                     found_better_on_axis = True
             
-            # --- MOVIMENTO IMMEDIATO ---
-            # Appena ho finito di esplorare QUESTO asse, se ho trovato di meglio, MI MUOVO.
+            # --- MOVIMENTO ---
+            # Se ho trovato di meglio su QUESTO asse, MI MUOVO. Altrimenti rimango dov'è.
             if found_better_on_axis:
-                curr_c, curr_j, curr_comp, curr_d = axis_best_coords
-                best_thr = axis_best_thr
-                improvement_in_cycle = True # Segnalo che il ciclo ha prodotto un miglioramento
-                step += 1
-                # Registro il punto migliore trovato su QUESTO asse come parte del percorso (is_path=True)
-                final_path.append((step, CACHE_SIZES[curr_c], JOURNAL_INTERVALS[curr_j], COMPRESSORS[curr_comp], DISTRIBUTIONS[curr_d]))
+                if evaluations_done < EVALUATIONS:
+                    curr_c, curr_j, curr_comp, curr_d = axis_best_coords
+                    best_thr = axis_best_thr
+                    step += 1
+                    # Registro il punto migliore trovato su QUESTO asse come parte del percorso (is_path=True)
+                    move_eval_id = visited_eval_ids[axis_best_coords]
+                    final_path.append((step, CACHE_SIZES[curr_c], JOURNAL_INTERVALS[curr_j], COMPRESSORS[curr_comp], DISTRIBUTIONS[curr_d], is_restart_flag, move_eval_id))
+                    is_restart_flag = False
+                    
+                    print(f"   ✅ Miglioramento sull'asse {asse_nomi[axis]}! Mi sposto subito a: Cache={CACHE_SIZES[curr_c]}GB | Journal={JOURNAL_INTERVALS[curr_j]}ms | Comp={COMPRESSORS[curr_comp]} | Dist={DISTRIBUTIONS[curr_d].upper()}")
+                    improvement_in_cycle = True
+
+        # Se in un intero ciclo di tutti gli assi non abbiamo trovato alcun miglioramento, siamo in un ottimo locale. 
+        if not improvement_in_cycle:
+            print("\n🚫 Nessun miglioramento. Ottimo locale raggiunto!")
+            if evaluations_done < EVALUATIONS:
+                print(f"🔀 RANDOM RESTART! Sfrutto il budget rimanente ({EVALUATIONS - evaluations_done} valutazioni)...")
+                curr_c = random.randint(0, len(CACHE_SIZES) - 1)
+                curr_j = random.randint(0, len(JOURNAL_INTERVALS) - 1)
+                curr_comp = random.randint(0, len(COMPRESSORS) - 1)
+                curr_d = random.randint(0, len(DISTRIBUTIONS) - 1)
                 
-                print(f"   ✅ Miglioramento sull'asse {asse_nomi[axis]}! Mi sposto subito a: Cache={CACHE_SIZES[curr_c]}GB | Journal={JOURNAL_INTERVALS[curr_j]}ms | Comp={COMPRESSORS[curr_comp]} | Dist={DISTRIBUTIONS[curr_d].upper()}")
+                # Cerca una configurazione INEDITA per non sprecare il budget
+                tentativi = 0
+                while (curr_c, curr_j, curr_comp, curr_d) in visited_points and tentativi < 1000:
+                    curr_c = random.randint(0, len(CACHE_SIZES) - 1)
+                    curr_j = random.randint(0, len(JOURNAL_INTERVALS) - 1)
+                    curr_comp = random.randint(0, len(COMPRESSORS) - 1)
+                    curr_d = random.randint(0, len(DISTRIBUTIONS) - 1)
+                    tentativi += 1
+                
+                step += 1
+                is_restart_flag = True
+                best_thr, restart_eval_id = evaluate_point(curr_c, curr_j, curr_comp, curr_d, visited_points, visited_eval_ids, csv_filename, step, start_time_global, is_center=True)
+                final_path.append((step, CACHE_SIZES[curr_c], JOURNAL_INTERVALS[curr_j], COMPRESSORS[curr_comp], DISTRIBUTIONS[curr_d], is_restart_flag, restart_eval_id))
+                is_restart_flag = False
+            else:
+                break
 
     # --- AGGIORNAMENTO DEL PATH FINALE NEL CSV ---
+    # Usa evaluation_id come chiave univoca: impedisce che step successivi
+    # con le stesse coordinate sovrascrivano step precedenti (es. S9 su S1).
     df = pd.read_csv(csv_filename)
-    for path_step, p_c, p_j, p_comp, p_dist in final_path:
-        mask = (df['cache_GB'] == p_c) & (df['journal_ms'] == p_j) & (df['compressor'] == p_comp) & (df['distribution'] == p_dist)
-        df.loc[mask, 'step'] = path_step 
+    if 'is_restart' not in df.columns:
+        df['is_restart'] = False
+        
+    for path_step, p_c, p_j, p_comp, p_dist, is_restart, p_eval_id in final_path:
+        mask = df['evaluation_id'] == p_eval_id      # ← chiave univoca
+        df.loc[mask, 'step']    = path_step
         df.loc[mask, 'is_path'] = True
+        if is_restart:
+            df.loc[mask, 'is_restart'] = True
+            
     df.to_csv(csv_filename, index=False)
-
-    if not improvement_in_cycle:
-        print(f"\n🛑 NESSUN MIGLIORAMENTO IN NESSUN ASSE. L'algoritmo ha scoperto un Ottimo Locale!")
 
     # Calcoliamo il tempo totale impiegato per completare la Coordinate Search, per avere un'idea del tempo necessario per questo tipo di esplorazione sistematica.
     total_minutes = (time.time() - start_time_global) / 60.0
@@ -337,7 +447,9 @@ def main():
     print(f"🏆 OTTIMO LOCALE TROVATO: Cache={CACHE_SIZES[curr_c]}GB | Journal={JOURNAL_INTERVALS[curr_j]}ms | Comp={COMPRESSORS[curr_comp]} | Dist={DISTRIBUTIONS[curr_d].upper()}")
     
     print(f"\n📊 Generazione Grafico Matrice 3x3 in corso...")
-    plot_cs_master(csv_filename, os.path.join(BASE_DIR, f"Analisi_WL_{WORKLOAD_TYPE}_{ts}"))
+    # (Generazione Heatmap spostata al termine del workload da master_plotter)
+
+    # plot_cs_master(csv_filename, os.path.join(BASE_DIR, f"Analisi_WL_{WORKLOAD_TYPE}_{ts}"))
     print(f"✅ Fatto! Trovi i risultati in: {BASE_DIR}")
 
 if __name__ == "__main__":
