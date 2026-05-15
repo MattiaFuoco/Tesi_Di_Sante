@@ -11,7 +11,7 @@ import numpy as np
 # ==========================================
 # 1. SPAZIO DI RICERCA GLOBALE
 # ==========================================
-CACHE_SIZES = [0.25, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+CACHE_SIZES = [0.25, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0]
 JOURNAL_INTERVALS = [1, 100, 500]
 COMPRESSORS = ["none", "snappy", "zstd"]
 DISTRIBUTIONS = ["uniform", "zipfian", "latest"]
@@ -26,7 +26,7 @@ EVALUATIONS = 90
 REPETITIONS = 5
 FIXED_THREADS = 32
 OPS_PER_THREAD = 80000
-PRELOAD_DOCS = 1200000
+PRELOAD_DOCS = 1600000
 
 # ────────────────────────────── SWITCH AMBIENTE (DIRECT_IO DISABILITATO) ──────────────────────────
 # IS_SERVER = os.environ.get("BENCHMARK_ENV", "wsl") == "server"
