@@ -163,8 +163,7 @@ def main():
             df.columns = df.columns.str.lower().str.strip()
 
             throughput_col = pick_column(df.columns, ['throughput_avg', 'throughput'])
-            throughput_min_col = pick_column(df.columns, ['throughput_min'])
-            throughput_max_col = pick_column(df.columns, ['throughput_max'])
+            throughput_std_col = pick_column(df.columns, ['throughput_std'])
 
             if throughput_col is None:
                 continue
@@ -187,9 +186,14 @@ def main():
                         'cache_gb':   gs_best_row.get('cache_gb', None),
                         'journal_ms': gs_best_row.get('journal_ms', None),
                     }
-                    if throughput_min_col and throughput_max_col:
-                        gs_best_min = float(gs_best_row[throughput_min_col])
-                        gs_best_max = float(gs_best_row[throughput_max_col])
+                    # Fascia = media ± deviazione standard delle ripetizioni
+                    # (convenzione accademica: cattura l'incertezza tipica della
+                    # misura, meno sensibile agli outlier rispetto a min/max).
+                    if throughput_std_col:
+                        gs_best_avg = float(gs_best_row[throughput_col])
+                        gs_best_std = float(gs_best_row[throughput_std_col])
+                        gs_best_min = gs_best_avg - gs_best_std
+                        gs_best_max = gs_best_avg + gs_best_std
                 continue
 
             # Calcolo della curva Anytime (massimo progressivo)
@@ -324,8 +328,8 @@ def main():
     if gs_max_throughput is not None:
         if gs_best_min is not None and gs_best_max is not None:
             # Ombreggiatura a fascia (min-max) orizzontale
-            ax_steps.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Min/Max', zorder=1)
-            ax_time.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Min/Max', zorder=1)
+            ax_steps.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Avg ± Std', zorder=1)
+            ax_time.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Avg ± Std', zorder=1)
 
         ax_steps.axhline(y=gs_max_throughput, color='black', linestyle='--',
                          linewidth=2.5, label='Grid Search Max', zorder=3)
