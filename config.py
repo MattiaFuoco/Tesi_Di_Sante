@@ -11,7 +11,7 @@ import numpy as np
 # ==========================================
 # 1. SPAZIO DI RICERCA GLOBALE
 # ==========================================
-CACHE_SIZES = [0.25, 0.5, 1.0, 2.5, 4.0, 5.0, 6.0]
+CACHE_SIZES = [0.25, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
 JOURNAL_INTERVALS = [1, 100, 500]
 COMPRESSORS = ["none", "snappy", "zstd"]
 DISTRIBUTIONS = ["uniform", "zipfian", "latest"]
