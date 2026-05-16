@@ -1,5 +1,5 @@
 TESI: Ottimizzazione automatica delle prestazioni di MongoDB mediante tuning dei parametri di configurazione
-(Performance Optimization of MongoDB through Automated Configuration Tuning)
+(Performance Optimization of MongoDB Through Automated Configuration Tuning)
 
 
 ================================================================================
@@ -29,7 +29,7 @@ il framework adotta una strategia basata su 3 Dataset Isolati:
    una preparazione massiva. Avvia in sequenza mongod tre volte, assegnando ad
    ogni istanza un compressore nativo diverso (none, snappy, zstd).
    Tramite YCSB, popola fisicamente questi tre database inserendo l'intero dataset
-   (2.000.000 record, circa 1 KB cadauno).
+   (1.600.000 record, circa 1 KB cadauno).
 
 -- Persistenza Dedicata (3 directory interne al container):
    I dati vengono salvati in directory separate all'interno del container,
@@ -66,31 +66,36 @@ kernel host. Questo permette di scrivere direttamente su:
   sync; echo 3 > /proc/sys/vm/drop_caches
 colpendo il kernel host reale senza bisogno di container intermedi.
 
-Livelli di controllo della cache (dal più profondo al più esterno):
+Livelli di controllo della cache attivi nel framework:
 
   1. nocache (wrappa mongod): impedisce a mongod di popolare la page cache
      durante ogni singola operazione I/O.
-  2. direct_io=[data,log]: WiredTiger bypassa la page cache per i suoi
-     file interni di dati e journal (solo su Server Debian).
-  3. drop_caches prima di ogni run: svuota tutto ciò che potrebbe essere
+  2. drop_caches prima di ogni run: svuota tutto ciò che potrebbe essere
      rimasto in cache da processi di sistema o dal run precedente.
+
+Nota: in questa versione del framework il Direct I/O di WiredTiger
+(direct_io=[data,log]) è disabilitato per garantire la massima portabilità tra
+WSL2 e bare-metal. La combinazione di nocache (a livello processo) e
+drop_caches (a livello kernel) è sufficiente a ottenere un Cold Start
+ripetibile su entrambi gli ambienti.
 
 
 ================================================================================
 Rilevamento Automatico dell'Ambiente
 ================================================================================
-Il file config.py e lo script start_benchmark.sh rilevano automaticamente
+Lo script start_benchmark.sh e il file config.py rilevano automaticamente
 l'ambiente in cui stanno girando leggendo /proc/version:
 
-- Se contiene "microsoft" → WSL2:
-    - Direct I/O solo sui dati (il log crasha su filesystem virtuale WSL2)
+- Se contiene "microsoft" → WSL2
+- Altrimenti → Server Debian
 
-- Altrimenti → Server Debian:
-    - Direct I/O completo su dati e log (bare-metal lo supporta pienamente)
-
-In entrambi i casi il container è unico e l'architettura è identica.
-Non è necessario modificare nulla manualmente: un solo comando gestisce entrambi
-gli ambienti.
+Il rilevamento viene esportato nella variabile d'ambiente BENCHMARK_ENV e
+serve attualmente solo a scopo informativo (stampa nei log, tracciamento
+nelle sessioni di benchmark). L'architettura e il comportamento sono
+identici nei due ambienti: il container è lo stesso, le directory dati sono
+le stesse, e il Direct I/O è disabilitato in entrambi i casi (vedi sezione
+precedente). Non è necessario modificare nulla manualmente: un solo comando
+gestisce entrambi gli ambienti.
 
 
 ================================================================================
@@ -100,8 +105,9 @@ L'intero framework è governato da un file centrale (config.py). Per garantire
 la massima equità accademica e un confronto "ad armi pari", tutti gli algoritmi
 euristici (Random Search, Simulated Annealing, Evolutionary Algorithm, Bayesian
 Optimization, Coordinate Search, Hill Climbing) condividono un budget di
-valutazioni dinamico e centralizzato (EVALUATIONS = 81, esattamente la metà
-delle 162 configurazioni totali esplorate dalla Grid Search).
+valutazioni dinamico e centralizzato (EVALUATIONS = 90, circa la metà delle
+189 configurazioni totali esplorate dalla Grid Search — pari a 7 valori di
+cache × 3 intervalli di journal × 3 compressori × 3 distribuzioni).
 Modificando questo singolo parametro, tutti gli algoritmi ricalcoleranno
 automaticamente la propria termodinamica, i cicli evolutivi o le fasi esplorative.
 
