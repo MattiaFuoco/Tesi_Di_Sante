@@ -29,7 +29,8 @@ il framework adotta una strategia basata su 3 Dataset Isolati:
    una preparazione massiva. Avvia in sequenza mongod tre volte, assegnando ad
    ogni istanza un compressore nativo diverso (none, snappy, zstd).
    Tramite YCSB, popola fisicamente questi tre database inserendo l'intero dataset
-   (1.600.000 record, circa 1 KB cadauno).
+   (1.600.000 record, circa 10 KB cadauno: 10 campi YCSB da fieldlength=1000 byte,
+   per un totale non compresso di ~16 GB per dataset).
 
 -- Persistenza Dedicata (3 directory interne al container):
    I dati vengono salvati in directory separate all'interno del container,
