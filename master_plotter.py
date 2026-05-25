@@ -144,6 +144,8 @@ def main():
     gs_max_throughput = None
     gs_best_min = None
     gs_best_max = None
+    gs_best_abs_min = None  # Throughput MINIMO assoluto misurato per la miglior config
+    gs_best_abs_max = None  # Throughput MASSIMO assoluto misurato per la miglior config
     gs_best_config = None  # Configurazione ottima della Grid Search (riquadro sinistra)
     fallback_idx = 0
 
@@ -164,6 +166,8 @@ def main():
 
             throughput_col = pick_column(df.columns, ['throughput_avg', 'throughput'])
             throughput_std_col = pick_column(df.columns, ['throughput_std'])
+            throughput_min_col = pick_column(df.columns, ['throughput_min'])
+            throughput_max_col = pick_column(df.columns, ['throughput_max'])
 
             if throughput_col is None:
                 continue
@@ -194,6 +198,13 @@ def main():
                         gs_best_std = float(gs_best_row[throughput_std_col])
                         gs_best_min = gs_best_avg - gs_best_std
                         gs_best_max = gs_best_avg + gs_best_std
+                    # Min/max ASSOLUTI misurati sulle ripetizioni della miglior config
+                    # (richiesti dal relatore: mostrano l'inviluppo reale della misura,
+                    # utili per capire se un euristico supera davvero la Grid Search).
+                    if throughput_min_col:
+                        gs_best_abs_min = float(gs_best_row[throughput_min_col])
+                    if throughput_max_col:
+                        gs_best_abs_max = float(gs_best_row[throughput_max_col])
                 continue
 
             # Calcolo della curva Anytime (massimo progressivo)
@@ -332,9 +343,24 @@ def main():
             ax_time.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Avg ± Std', zorder=1)
 
         ax_steps.axhline(y=gs_max_throughput, color='black', linestyle='--',
-                         linewidth=2.5, label='Grid Search Max', zorder=3)
+                         linewidth=2.5, label='Grid Search Media (best config)', zorder=3)
         ax_time.axhline(y=gs_max_throughput, color='black', linestyle='--',
-                        linewidth=2.5, label='Grid Search Max', zorder=3)
+                        linewidth=2.5, label='Grid Search Media (best config)', zorder=3)
+
+        # Righe MIN/MAX assoluti misurati per la miglior config (linee sottili
+        # punteggiate). Mostrano l'inviluppo reale delle ripetizioni della Grid
+        # Search: aiutano a giudicare se un euristico supera davvero la baseline
+        # o resta dentro il rumore di misura. Si lascia tutto il resto invariato.
+        if gs_best_abs_max is not None:
+            ax_steps.axhline(y=gs_best_abs_max, color='black', linestyle=':',
+                             linewidth=1.3, alpha=0.7, label='Grid Search Max (misurato)', zorder=3)
+            ax_time.axhline(y=gs_best_abs_max, color='black', linestyle=':',
+                            linewidth=1.3, alpha=0.7, label='Grid Search Max (misurato)', zorder=3)
+        if gs_best_abs_min is not None:
+            ax_steps.axhline(y=gs_best_abs_min, color='black', linestyle=':',
+                             linewidth=1.3, alpha=0.7, label='Grid Search Min (misurato)', zorder=3)
+            ax_time.axhline(y=gs_best_abs_min, color='black', linestyle=':',
+                            linewidth=1.3, alpha=0.7, label='Grid Search Min (misurato)', zorder=3)
 
     # ── Riquadri informativi nella riga HEADER (al di sopra del grafico) ────
     # ax_header è un asse invisibile dedicato: occupa la riga superiore della
