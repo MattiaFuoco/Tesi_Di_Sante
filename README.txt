@@ -198,10 +198,21 @@ automaticamente nella cartella results/ nella directory del progetto. Troverai:
   algoritmo per i Workload A, B e D. Le mappe mostrano il percorso decisionale
   di ciascun algoritmo.
 
-- File REPORT_STEPS_WL_X.png:
+- File REPORT_STEPS_WL_X.{png,pdf,svg}:
   Grafico aggregato comparativo (Anytime Performance) basato sul budget di step.
+  Esportato in tre formati: PNG (300 DPI) per visualizzazione rapida, PDF e
+  SVG (vettoriali) per inclusione in tesi e stampa di qualita'.
 
-- File REPORT_TIME_WL_X.png:
+- File REPORT_TIME_WL_X.{png,pdf,svg}:
   Grafico aggregato comparativo (Anytime Performance) basato sul tempo reale
   (fondamentale per valutare l'overhead introdotto dai processi decisionali
-  dell'Intelligenza Artificiale).
+  dell'Intelligenza Artificiale). Esportato negli stessi tre formati.
+
+Baseline Grid Search nei due grafici REPORT_*:
+  - Linea nera tratteggiata: media delle ripetizioni della miglior configurazione
+    trovata dalla Grid Search (= massimo tra le medie delle configurazioni).
+  - Fascia grigia: media +- deviazione standard di quella stessa configurazione.
+  - Linee nere punteggiate (sottili): minimo e massimo assoluti effettivamente
+    osservati nelle ripetizioni della miglior configurazione. Permettono di
+    distinguere un euristico che batte realmente la Grid Search da uno che
+    resta dentro la variabilita' di misura.
