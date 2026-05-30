@@ -1,4 +1,4 @@
-# ==========================================
+﻿# ==========================================
 # IMPORTAZIONI DI BASE E SISTEMA
 # ==========================================
 import os
@@ -33,8 +33,8 @@ from config import *
 # PARAMETRI DELL'ALGORITMO GENETICO (PURI)
 # Dimensione della popolazione per generazione
 POPULATION_SIZE = max(4, EVALUATIONS // 8)    # (se dispari-->arrotondameto per difetto)
-# Partirà una nuova generazione ogni volta che avremo completato la valutazione di POPULATION_SIZE individui, fino a raggiungere il budget totale di EVALUATIONS.
-# Quindi se EVALUATIONS è dispari, l'ultima generazione potrebbe essere parziale, ma non supererà mai il budget totale.
+# PartirÃ  una nuova generazione ogni volta che avremo completato la valutazione di POPULATION_SIZE individui, fino a raggiungere il budget totale di EVALUATIONS.
+# Quindi se EVALUATIONS Ã¨ dispari, l'ultima generazione potrebbe essere parziale, ma non supererÃ  mai il budget totale.
 # In questo modo garantiamo un numero di generazioni dinamico e adattivo in base al budget definito in config.py. 
 
 # Calcoliamo dinamicamente le generazioni in base al budget di config.py
@@ -50,7 +50,7 @@ MUTATION_RATE = 0.40     # Tasso di mutazione FISSO, come in natura
 def create_random_individual():
     """Genesi: Crea un individuo con DNA casuale."""
 
-    # Ogni individuo è una tupla di 4 geni (cache_gb, journal_ms, compressor, distribution),
+    # Ogni individuo Ã¨ una tupla di 4 geni (cache_gb, journal_ms, compressor, distribution),
     # scelti casualmente dallo spazio di ricerca globale definito in config.py.
     return (
         random.choice(CACHE_SIZES),
@@ -65,14 +65,14 @@ def evaluate_individual(individual, visited_points, csv_filename, gen_num, eval_
     c_gb, j_ms, comp, dist = individual
     
     # --- MEMOIZATION: Memoria Genetica ---
-    # Se questo identico DNA è già nato in passato, conosciamo già la sua forza.
+    # Se questo identico DNA Ã¨ giÃ  nato in passato, conosciamo giÃ  la sua forza.
     if individual in visited_points:
         stats = visited_points[individual]
         avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
-        print(f"      -> ⏭️ DNA già noto! Recupero dalla memoria genetica: {avg_thr:.2f} ops/sec")
+        print(f"      -> â­ï¸ DNA giÃ  noto! Recupero dalla memoria genetica: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
-        # Salviamo comunque il risultato nel CSV, indicando che è un punto già visitato (is_best_of_gen=False).
+        # Salviamo comunque il risultato nel CSV, indicando che Ã¨ un punto giÃ  visitato (is_best_of_gen=False).
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([gen_num, eval_id, c_gb, j_ms, comp, dist, "mean",
@@ -86,11 +86,11 @@ def evaluate_individual(individual, visited_points, csv_filename, gen_num, eval_
     # Esecuzione nativa tramite la MASTER API in config.py
     avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
-    print(f"   🚀 THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
+    print(f"   ðŸš€ THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     
     elapsed_minutes = (time.time() - start_time_global) / 60.0
     
-    # Salviamo il risultato nel CSV, indicando che è un punto nuovo (is_best_of_gen=False).
+    # Salviamo il risultato nel CSV, indicando che Ã¨ un punto nuovo (is_best_of_gen=False).
     with open(csv_filename, mode='a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow([gen_num, eval_id, c_gb, j_ms, comp, dist, "mean",
@@ -98,7 +98,7 @@ def evaluate_individual(individual, visited_points, csv_filename, gen_num, eval_
                        avg_thr, round(min_thr, 2), round(max_thr, 2), round(std_thr, 2),
                        False, round(elapsed_minutes, 2)])
         
-    # Aggiorniamo la memoria genetica con questo nuovo punto visitato, così da evitare di ripetere test già fatti in futuro.
+    # Aggiorniamo la memoria genetica con questo nuovo punto visitato, cosÃ¬ da evitare di ripetere test giÃ  fatti in futuro.
     visited_points[individual] = (avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur)
     
     return avg_thr
@@ -110,22 +110,22 @@ def evaluate_individual(individual, visited_points, csv_filename, gen_num, eval_
 def crossover(parent1, parent2):
     """Riproduzione: Uniform Crossover classico. I figli mescolano i tratti dei genitori."""
 
-    # Ogni gene ha il 50% di probabilità di essere ereditato da uno dei due genitori, creando così una combinazione unica.
+    # Ogni gene ha il 50% di probabilitÃ  di essere ereditato da uno dei due genitori, creando cosÃ¬ una combinazione unica.
     child1, child2 = list(parent1), list(parent2)
 
-    # Per ogni gene (parametro), decidiamo casualmente se scambiarlo tra i due figli o lasciarlo invariato, mantenendo così la diversità genetica.
+    # Per ogni gene (parametro), decidiamo casualmente se scambiarlo tra i due figli o lasciarlo invariato, mantenendo cosÃ¬ la diversitÃ  genetica.
     for i in range(4): # Per ogni cromosoma (parametro)
         if random.random() > 0.5:
-            # Scambiamo il gene i tra i due figli, creando così nuove combinazioni di tratti.
+            # Scambiamo il gene i tra i due figli, creando cosÃ¬ nuove combinazioni di tratti.
             child1[i], child2[i] = child2[i], child1[i]
     # Restituiamo i due figli come tuple, pronti per essere valutati nella prossima generazione.
     return tuple(child1), tuple(child2)
 
-# mutate() simula la mutazione genetica, introducendo variazioni casuali nei tratti di un individuo con una certa probabilità.
+# mutate() simula la mutazione genetica, introducendo variazioni casuali nei tratti di un individuo con una certa probabilitÃ .
 def mutate(individual):
-    """Mutazione: pura probabilità darwiniana applicata a OGNI SINGOLO gene in modo indipendente."""
+    """Mutazione: pura probabilitÃ  darwiniana applicata a OGNI SINGOLO gene in modo indipendente."""
 
-    # Ogni gene ha una probabilità fissa (MUTATION_RATE) di essere mutato, cioè sostituito da un nuovo valore casuale preso dallo spazio di ricerca.
+    # Ogni gene ha una probabilitÃ  fissa (MUTATION_RATE) di essere mutato, cioÃ¨ sostituito da un nuovo valore casuale preso dallo spazio di ricerca.
     ind = list(individual)
     if random.random() < MUTATION_RATE: ind[0] = random.choice(CACHE_SIZES)
     if random.random() < MUTATION_RATE: ind[1] = random.choice(JOURNAL_INTERVALS)
@@ -146,7 +146,6 @@ def plot_ea_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     journal_map = {val: idx for idx, val in enumerate(JOURNAL_INTERVALS)}
 
     fig, axes = plt.subplots(len(COMPRESSORS), len(DISTRIBUTIONS), figsize=(20, 15))
-    fig.suptitle("Evolutionary Algorithm - Mappa Topografica Globale\n(Grigio: Specie Estinte | Bianco: Individuo Alfa | Frecce: Salti Generazionali)", fontsize=20, fontweight='bold')
 
     vmin = global_vmin if global_vmin is not None else df['throughput_avg'].min()
     vmax = global_vmax if global_vmax is not None else df['throughput_avg'].max()
@@ -179,7 +178,7 @@ def plot_ea_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     # dei bordi rettangolari di griddata+nearest. Fallback su
                     # griddata se RBF fallisce (es. punti collineari).
                     try:
-                        # smooth=0 → RBF passa ESATTAMENTE per i punti misurati.
+                        # smooth=0 â†’ RBF passa ESATTAMENTE per i punti misurati.
                         # Niente smoothing soppresso: le creste/valli reali emergono
                         # invece di essere "lisciate via" in grandi blob uniformi.
                         rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
@@ -236,8 +235,8 @@ def plot_ea_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     py = journal_map[path_j[i]]
                     
                     if path_evals[i] == absolute_best_eval_id:
-                        # Stella dorata — annotate ancorato al punto, NON in texts
-                        # così adjust_text non lo sposta mai fuori dalla stella.
+                        # Stella dorata â€” annotate ancorato al punto, NON in texts
+                        # cosÃ¬ adjust_text non lo sposta mai fuori dalla stella.
                         ax.scatter(px, py, color='gold', marker='*', s=1200, zorder=12,
                                    edgecolors='black', linewidth=1.5)
                         ax.annotate(f"G{int(path_gens[i])}", xy=(px, py),
@@ -245,7 +244,7 @@ def plot_ea_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                                     fontsize=7, fontweight='bold', color='black',
                                     xycoords='data', zorder=14,
                                     annotation_clip=False)
-                        # NON aggiungiamo a texts → adjust_text non lo tocca
+                        # NON aggiungiamo a texts â†’ adjust_text non lo tocca
                     else:
                         # Cerchio bianco per gli Alfa di generazione
                         ax.scatter(px, py, color='white', s=150, zorder=8, edgecolors='black', linewidth=1.5)
@@ -265,13 +264,18 @@ def plot_ea_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
             ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES)
             ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS)
             if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=12)
-            if c == 0: ax.set_ylabel(f"Compressor: {comp.upper()}\nJournal Interval (ms)", fontsize=12, fontweight='bold')
+            if c == 0:
+                ax.set_ylabel("Journal Interval (ms)", fontsize=12, fontweight='bold')
+            if c == len(DISTRIBUTIONS) - 1:
+                ax.yaxis.set_label_position('right')
+                ax.yaxis.set_ticks_position('left')
+                ax.set_ylabel(f"Compressor: {comp.upper()}", fontsize=12, fontweight='bold', rotation=-90, labelpad=15)
             if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=14, fontweight='bold')
             ax.set_xlim(-0.3, len(CACHE_SIZES)-0.7); ax.set_ylim(-0.3, len(JOURNAL_INTERVALS)-0.7)
             ax.grid(True, linestyle='--', alpha=0.3)
 
     plt.tight_layout()
-    fig.subplots_adjust(top=0.92, right=0.92, hspace=0.3) 
+    fig.subplots_adjust(top=0.97, right=0.92, hspace=0.3) 
     if contour_plot:
         cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) 
         fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical').set_label('Throughput (ops/sec)', fontsize=14)
@@ -285,9 +289,9 @@ def plot_ea_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
 # MAIN LOOP (ALGORITMO EVOLUTIVO)
 # ==========================================
 def main():
-    print(f"🧬 PARTENZA ALGORITMO: ALGORITMO EVOLUTIVO (Workload {WORKLOAD_TYPE})")
+    print(f"ðŸ§¬ PARTENZA ALGORITMO: ALGORITMO EVOLUTIVO (Workload {WORKLOAD_TYPE})")
     
-    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    # âš ï¸ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
     master_dir = get_master_dir()
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
@@ -295,7 +299,7 @@ def main():
     
     # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
     BASE_DIR = os.path.join(get_master_dir(), "Evolutionary Algorithm")
-    print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
+    print(f"   [DEBUG] BASE_DIR sarÃ : {BASE_DIR}")
     
     # Creazione della cartella per i risultati, con timestamp per evitare sovrascritture e mantenere ordine cronologico.
     os.makedirs(BASE_DIR, exist_ok=True)
@@ -312,7 +316,7 @@ def main():
 
     start_time_global = time.time()
     
-    # Dizionario per la memoization (Salva i genotipi già valutati)
+    # Dizionario per la memoization (Salva i genotipi giÃ  valutati)
     visited_points = {}
     eval_id = 1
     
@@ -324,7 +328,7 @@ def main():
     
     # Loop delle Generazioni
     for gen in range(1, GENERATIONS + 1):
-        print(f"\n🌱 GENERAZIONE {gen}/{GENERATIONS}")
+        print(f"\nðŸŒ± GENERAZIONE {gen}/{GENERATIONS}")
         
         # Lista per memorizzare i risultati di fitness (throughput) di ogni individuo in questa generazione,
         # insieme al suo DNA e ID di valutazione.
@@ -338,13 +342,13 @@ def main():
 
             # Hard stop di sicurezza nel caso in cui il budget non sia un multiplo perfetto
             if eval_id > EVALUATIONS:
-                print(f"\n🛑 Raggiunto il limite globale ({EVALUATIONS}). Fine evoluzione anticipata.")
+                print(f"\nðŸ›‘ Raggiunto il limite globale ({EVALUATIONS}). Fine evoluzione anticipata.")
                 break
 
             thr = evaluate_individual(ind, visited_points, csv_filename, gen, eval_id, start_time_global)
             fitness_scores.append((thr, ind, eval_id))
             
-            # Troviamo l'individuo più forte della generazione corrente
+            # Troviamo l'individuo piÃ¹ forte della generazione corrente
             if thr > best_gen_thr:
                 best_gen_thr = thr
                 best_gen_ind = ind
@@ -352,10 +356,10 @@ def main():
             
             eval_id += 1
             
-        print(f"   🏆 L'ALFA della Gen {gen} è Ind{best_gen_eval_id} con {best_gen_thr:.2f} ops/sec")
+        print(f"   ðŸ† L'ALFA della Gen {gen} Ã¨ Ind{best_gen_eval_id} con {best_gen_thr:.2f} ops/sec")
         
         if best_gen_eval_id != -1:
-            # Aggiorniamo il CSV indicando chi è l'Alfa
+            # Aggiorniamo il CSV indicando chi Ã¨ l'Alfa
             df = pd.read_csv(csv_filename)
             df.loc[df['evaluation_id'] == best_gen_eval_id, 'is_best_of_gen'] = True
             df.to_csv(csv_filename, index=False)
@@ -364,11 +368,11 @@ def main():
         if eval_id > EVALUATIONS or gen == GENERATIONS: 
             break
             
-        print(f"   💞 Torneo, Accoppiamento e Mutazione (Tasso Fisso: {MUTATION_RATE})...")
+        print(f"   ðŸ’ž Torneo, Accoppiamento e Mutazione (Tasso Fisso: {MUTATION_RATE})...")
         
         # 2. Selezione ed Elitarismo
         # Il migliore di questa generazione (Alfa) viene automaticamente promosso alla prossima generazione,
-        # garantendo così che i tratti più forti non vadano persi.
+        # garantendo cosÃ¬ che i tratti piÃ¹ forti non vadano persi.
         new_population = [best_gen_ind] 
         
         # 3. Riproduzione per generare la nuova stirpe, fino a raggiungere la dimensione della popolazione desiderata
@@ -401,16 +405,16 @@ def main():
     # Calcoliamo il tempo totale impiegato per completare l'algoritmo evolutivo, per avere un'idea del tempo necessario per questo tipo di esplorazione darwiniana.
     total_minutes = (time.time() - start_time_global) / 60.0
     
-    print(f"\n🏁 Algoritmo Evolutivo Completato in {total_minutes:.1f} minuti.")
+    print(f"\nðŸ Algoritmo Evolutivo Completato in {total_minutes:.1f} minuti.")
     
-    print(f"\n📊 Generazione Grafico Mappa Topografica in corso...")
+    print(f"\nðŸ“Š Generazione Grafico Mappa Topografica in corso...")
     try:
         # (Generazione Heatmap spostata al termine del workload da master_plotter)
 
         # plot_ea_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
-        print(f"✅ Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
+        print(f"âœ… Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
     except Exception as e:
-        print(f"⚠️ Impossibile generare la heatmap: {e}")
+        print(f"âš ï¸ Impossibile generare la heatmap: {e}")
 
 if __name__ == "__main__":
     main()

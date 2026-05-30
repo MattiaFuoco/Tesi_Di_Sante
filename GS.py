@@ -1,4 +1,4 @@
-# ==========================================
+﻿# ==========================================
 # IMPORTAZIONI DI BASE E SISTEMA
 # ==========================================
 import os
@@ -37,7 +37,6 @@ def plot_gs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     journal_map = {val: idx for idx, val in enumerate(JOURNAL_INTERVALS)}
 
     fig, axes = plt.subplots(len(COMPRESSORS), len(DISTRIBUTIONS), figsize=(20, 15))
-    fig.suptitle("Grid Search - Mappa Topografica Esatta\n(Esplorazione su tutto lo spazio - Stella = Ottimo Globale Assoluto)", fontsize=20, fontweight='bold')
 
     # Aggreghiamo i dati per trovare la singola configurazione migliore in assoluto
     df_agg = df.groupby(['cache_GB', 'journal_ms', 'compressor', 'distribution'])['throughput_avg'].mean(numeric_only=True).reset_index()
@@ -73,7 +72,7 @@ def plot_gs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     # dei bordi rettangolari di griddata+nearest. Fallback su
                     # griddata se RBF fallisce (es. punti collineari).
                     try:
-                        # smooth=0 → RBF passa ESATTAMENTE per i punti misurati.
+                        # smooth=0 â†’ RBF passa ESATTAMENTE per i punti misurati.
                         # Niente smoothing soppresso: le creste/valli reali emergono
                         # invece di essere "lisciate via" in grandi blob uniformi.
                         rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
@@ -113,13 +112,18 @@ def plot_gs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
             ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES)
             ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS)
             if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=12)
-            if c == 0: ax.set_ylabel(f"Compressor: {comp.upper()}\nJournal Interval (ms)", fontsize=12, fontweight='bold')
+            if c == 0:
+                ax.set_ylabel("Journal Interval (ms)", fontsize=12, fontweight='bold')
+            if c == len(DISTRIBUTIONS) - 1:
+                ax.yaxis.set_label_position('right')
+                ax.yaxis.set_ticks_position('left')
+                ax.set_ylabel(f"Compressor: {comp.upper()}", fontsize=12, fontweight='bold', rotation=-90, labelpad=15)
             if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=14, fontweight='bold')
             ax.set_xlim(-0.3, len(CACHE_SIZES)-0.7); ax.set_ylim(-0.3, len(JOURNAL_INTERVALS)-0.7)
             ax.grid(True, linestyle='--', alpha=0.3)
 
     plt.tight_layout()
-    fig.subplots_adjust(top=0.92, right=0.92, hspace=0.3) 
+    fig.subplots_adjust(top=0.97, right=0.92, hspace=0.3) 
     if contour_plot:
         cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) 
         fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical').set_label('Throughput (ops/sec)', fontsize=14)
@@ -133,9 +137,9 @@ def plot_gs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
 # MAIN LOOP (GRID SEARCH)
 # ==========================================
 def main():
-    print(f"🗄️ PARTENZA ALGORITMO: GRID SEARCH (Workload {WORKLOAD_TYPE})")
+    print(f"ðŸ—„ï¸ PARTENZA ALGORITMO: GRID SEARCH (Workload {WORKLOAD_TYPE})")
     
-    # ⚠️ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    # âš ï¸ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
     master_dir = get_master_dir()
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
@@ -143,7 +147,7 @@ def main():
     
     # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
     BASE_DIR = os.path.join(get_master_dir(), "Grid Search")
-    print(f"   [DEBUG] BASE_DIR sarà: {BASE_DIR}")
+    print(f"   [DEBUG] BASE_DIR sarÃ : {BASE_DIR}")
     
     # Creiamo la cartella dei risultati se non esiste e prepariamo il file CSV per salvare i risultati in modo pulito e strutturato.
     os.makedirs(BASE_DIR, exist_ok=True)
@@ -159,7 +163,7 @@ def main():
                 "elapsed_minutes"])
 
     TOTAL_EVALUATIONS = len(CACHE_SIZES) * len(JOURNAL_INTERVALS) * len(COMPRESSORS) * len(DISTRIBUTIONS)
-    print(f"⚠️ ATTENZIONE: Mappatura totale dello spazio in corso. Configurazioni totali: {TOTAL_EVALUATIONS}")
+    print(f"âš ï¸ ATTENZIONE: Mappatura totale dello spazio in corso. Configurazioni totali: {TOTAL_EVALUATIONS}")
 
     start_time_global = time.time()
     eval_id = 1
@@ -173,11 +177,11 @@ def main():
                     print(f"\n[Test GS {eval_id}/{TOTAL_EVALUATIONS}] Valuto: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()}")
                     
                     # ====================================================================
-                    # 🚀 LA MAGIA DELL'API: Tutto il lavoro sporco è delegato a config.py!
+                    # ðŸš€ LA MAGIA DELL'API: Tutto il lavoro sporco Ã¨ delegato a config.py!
                     # ====================================================================
                     avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
                     
-                    print(f"   🚀 THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
+                    print(f"   ðŸš€ THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
                     
                     # Calcoliamo i minuti trascorsi dall'inizio del processo, per avere un'idea del tempo totale necessario per completare la mappatura.
                     elapsed_minutes = (time.time() - start_time_global) / 60.0
@@ -195,17 +199,17 @@ def main():
     # Calcoliamo il tempo totale impiegato per completare la Grid Search, per avere un'idea del tempo necessario per questo tipo di esplorazione esaustiva.
     total_minutes = (time.time() - start_time_global) / 60.0
 
-    print(f"\n✅ Grid Search Completa in {total_minutes:.1f} minuti.")
+    print(f"\nâœ… Grid Search Completa in {total_minutes:.1f} minuti.")
     
-    print(f"\n📊 Generazione Grafico Mappa Topografica Esatta in corso...")
+    print(f"\nðŸ“Š Generazione Grafico Mappa Topografica Esatta in corso...")
     
     try:
         # (Generazione Heatmap spostata al termine del workload da master_plotter)
 
         # plot_gs_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
-        print(f"✅ Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
+        print(f"âœ… Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
     except Exception as e:
-        print(f"⚠️ Impossibile generare la heatmap: {e}")
+        print(f"âš ï¸ Impossibile generare la heatmap: {e}")
 
 if __name__ == "__main__":
     main()

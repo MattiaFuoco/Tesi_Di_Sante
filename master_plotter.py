@@ -40,7 +40,7 @@ def apply_clean_style(ax):
     - Griglia sottile con alpha=0.3 per non sovrastare le curve
     - Rimozione spine superiore e destra (look accademico moderno)
     """
-    ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.8)
+    ax.grid(True, linestyle='-', alpha=0.5, linewidth=0.7, color='#bbbbbb')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
@@ -106,7 +106,7 @@ def main():
         print(f"[PLOTTER DEBUG] Primi 3 CSV: {all_csvs[:3]}")
 
     # Setup stile accademico
-    plt.style.use('seaborn-v0_8-darkgrid')
+    plt.style.use('seaborn-v0_8-white')
 
     # Usiamo GridSpec per riservare una riga stretta in CIMA alla figura
     # esclusivamente per i riquadri informativi: in questo modo non si
@@ -126,19 +126,8 @@ def main():
         ax.patch.set_visible(False)
         return ax
 
-    # height_ratios=[1, 7] → header ~12.5%, grafico ~87.5%
-    # hspace=0.4 lascia respiro tra i box dell'header e il titolo del grafico
-    fig_steps = plt.figure(figsize=(12, 8.5))
-    gs_steps  = GridSpec(2, 1, figure=fig_steps,
-                         height_ratios=[1, 9], hspace=0.25)
-    ax_steps_header = make_header_ax(fig_steps, gs_steps, 0)
-    ax_steps        = fig_steps.add_subplot(gs_steps[1])
-
-    fig_time = plt.figure(figsize=(12, 8.5))
-    gs_time  = GridSpec(2, 1, figure=fig_time,
-                        height_ratios=[1, 9], hspace=0.25)
-    ax_time_header = make_header_ax(fig_time, gs_time, 0)
-    ax_time        = fig_time.add_subplot(gs_time[1])
+    fig_steps, ax_steps = plt.subplots(figsize=(12, 8.5))
+    fig_time,  ax_time  = plt.subplots(figsize=(12, 8.5))
 
     algo_data = {}
     gs_max_throughput = None
@@ -219,35 +208,44 @@ def main():
                 'journal_ms': best_row.get('journal_ms', None),
             }
 
-            # Calcolo tempo in minuti (parte da 0)
+            # Calcolo tempo in minuti (parte da 0).
+            # Per i cache hit (step rieseguiti da memoria in millisecondi), l'elapsed_minutes
+            # è quasi uguale al passo precedente, comprimendo visivamente la curva.
+            # Soluzione: per ogni step, usiamo la duration_avg dell'evaluation ORIGINALE
+            # di quella configurazione (prima occorrenza nel CSV), poi ricostruiamo il
+            # tempo come somma cumulativa delle durate effettive (in secondi → minuti).
             time_minutes = None
             if time_col:
-                # SE LA COLONNA È GIÀ IN MINUTI, NON DIVIDIAMO PER 60!
-                if time_col == 'elapsed_minutes':
-                    time_minutes = df[time_col] - df[time_col].min()
-                else:
-                    time_minutes = (df[time_col] - df[time_col].min()) / 60
+                dur_col_name = next((c for c in df.columns if c == 'duration_avg'), None)
+                cache_c   = next((c for c in df.columns if 'cache' in c and 'gb' in c.lower()), None)
+                journal_c = next((c for c in df.columns if 'journal' in c), None)
+                comp_c    = next((c for c in df.columns if 'compressor' in c), None)
+                dist_c    = next((c for c in df.columns if 'distribut' in c), None)
 
-            # Rilevamento step "cache hit": alcuni algoritmi memorizzano configurazioni
-            # già testate e le rieseguono in millisecondi. Nel grafico del tempo questi
-            # step si sovrappongono visivamente perché hanno elapsed_time quasi identico
-            # al precedente. Li identifichiamo come step con durata < 5 secondi (0.083 min)
-            # e li distinguiamo visivamente con marker più piccoli e trasparenti.
-            is_cached = None
-            if time_minutes is not None:
-                # fillna(999) → il primo step ha diff=NaN, lo forziamo a 999 minuti
-                # così è sempre classificato come REALE (non cached).
-                # Prima usavamo fillna(time_minutes.iloc[0]) = 0.0 → veniva
-                # erroneamente classificato come cached e non riceveva il quadrato ■.
-                time_diffs = time_minutes.diff().fillna(999)
-                is_cached = time_diffs < 0.083  # soglia: meno di 5 secondi = cache hit
+                if dur_col_name and all([cache_c, journal_c, comp_c, dist_c]):
+                    key_cols = [cache_c, journal_c, comp_c, dist_c]
+                    first_dur = df.groupby(key_cols, sort=False)[dur_col_name].first()
+
+                    def get_eff_dur(row):
+                        try:
+                            return first_dur[tuple(row[c] for c in key_cols)]
+                        except Exception:
+                            return row[dur_col_name]
+
+                    eff_dur_sec = df.apply(get_eff_dur, axis=1)
+                    time_minutes = eff_dur_sec.cumsum() / 60
+                    time_minutes = time_minutes - time_minutes.iloc[0] + eff_dur_sec.iloc[0] / 60
+                else:
+                    if time_col == 'elapsed_minutes':
+                        time_minutes = df[time_col] - df[time_col].min()
+                    else:
+                        time_minutes = (df[time_col] - df[time_col].min()) / 60
 
             algo_data[algo_name] = {
                 'steps':       df[step_col].values,
                 'time':        time_minutes,
                 'y':           df['cummax_throughput'].values,
-                'is_cached':   is_cached,    # None se non disponibile il tempo
-                'best_config': best_config,  # per il sottotitolo dinamico
+                'best_config': best_config,
             }
             print(f"✅ Dati caricati per: {algo_name}")
 
@@ -266,74 +264,14 @@ def main():
         # 1. Grafico Performance vs Budget (Step)
         # Tutti gli step sono equidistanti sull'asse X, quindi tutti i marker sono visibili.
         ax_steps.plot(data['steps'], data['y'], label=algo_name,
-                      linewidth=2.5, marker='o', markersize=5, color=color, zorder=2,
-                      markeredgecolor='black', markeredgewidth=0.6)
+                      linewidth=2.5, color=color, zorder=2)
 
         # 2. Grafico Performance vs Tempo (Minuti)
-        # Gli step "cache hit" hanno elapsed_time quasi identico al precedente e si
-        # sovrappongono visivamente. Li disegniamo con marker piccoli e trasparenti
-        # per indicare che lo step esiste ma è stato eseguito in millisecondi.
+        # Il tempo è già corretto: i cache hit usano la duration_avg dell'evaluation
+        # originale, quindi la curva è distribuita uniformemente. Solo linea pulita.
         if data['time'] is not None:
-            is_cached = data.get('is_cached')
-
-            # Linea di base (stessa per tutti gli step)
             ax_time.plot(data['time'], data['y'], linewidth=2.5,
                          color=color, label=algo_name, zorder=2)
-
-            if is_cached is not None:
-                real_mask   = ~is_cached.values
-                cached_mask =  is_cached.values
-
-                # Step reali → quadrato standard con bordo nero.
-                # Per i punti che hanno cache hit vicini, il quadrato viene
-                # sostituito da un rettangolo allargato con "×N" dentro (vedi sotto).
-                # Costruiamo prima un set dei tempi "coperti" dai rettangoli.
-                cached_times = data['time'].values[cached_mask]
-                cached_ys    = data['y'][cached_mask]
-
-                # Raggruppa per bin da 14 secondi (≈0.233 min)
-                _BIN = 14 / 60
-                from collections import defaultdict
-                groups = defaultdict(list)
-                for t, y in zip(cached_times, cached_ys):
-                    t_bin = round(float(t) / _BIN) * _BIN
-                    groups[t_bin].append(float(y))
-
-                # Set dei bin che avranno un rettangolo ×N (N≥2 cache hit → N+1 totale)
-                rect_bins = {t_key for t_key, ys in groups.items() if len(ys) >= 1}
-
-                # Disegna quadrati reali SOLO per i punti NON coperti da un rettangolo
-                for rx, ry in zip(data['time'].values[real_mask], data['y'][real_mask]):
-                    rx_bin = round(float(rx) / _BIN) * _BIN
-                    if rx_bin not in rect_bins:
-                        # Quadrato normale
-                        ax_time.scatter(rx, ry, color=color, marker='s', s=50,
-                                        zorder=5, edgecolors='black', linewidths=0.8)
-                    # Se il punto è coperto da un rettangolo, non lo disegniamo separatamente
-
-                # Rettangolo ×N: sostituisce sia il quadrato reale che i cache hit
-                # È un bbox allargato orizzontalmente (pad x > pad y) con il testo dentro.
-                for t_key, ys in groups.items():
-                    n_cache = len(ys)          # numero di cache hit nel bin
-                    n_total = n_cache + 1      # +1 per lo step reale
-                    y_v     = max(ys)
-                    label   = f"×{n_total}"
-                    # Rettangolo: pad orizzontale grande per allargarlo, verticale piccolo
-                    ax_time.annotate(label,
-                                     xy=(t_key, y_v),
-                                     ha='center', va='center',
-                                     fontsize=6, fontweight='bold', color='black',
-                                     zorder=7,
-                                     annotation_clip=False,
-                                     bbox=dict(boxstyle='square,pad=0.2',
-                                               facecolor=color,
-                                               edgecolor='black',
-                                               linewidth=0.8,
-                                               alpha=0.9))
-            else:
-                # Fallback: nessuna informazione sul tempo, marker uniformi
-                ax_time.scatter(data['time'], data['y'], color=color,
-                                marker='s', s=30, zorder=5)
 
     # Aggiunta della Baseline Grid Search (Linea Nera Tratteggiata e Ombreggiatura Min/Max)
     if gs_max_throughput is not None:
@@ -343,9 +281,9 @@ def main():
             ax_time.axhspan(gs_best_min, gs_best_max, color='black', alpha=0.15, label='Grid Search Avg ± Std', zorder=1)
 
         ax_steps.axhline(y=gs_max_throughput, color='black', linestyle='--',
-                         linewidth=2.5, label='Grid Search Media (best config)', zorder=3)
+                         linewidth=2.5, label='Grid Search', zorder=3)
         ax_time.axhline(y=gs_max_throughput, color='black', linestyle='--',
-                        linewidth=2.5, label='Grid Search Media (best config)', zorder=3)
+                        linewidth=2.5, label='Grid Search', zorder=3)
 
         # Righe MIN/MAX assoluti misurati per la miglior config (linee sottili
         # punteggiate). Mostrano l'inviluppo reale delle ripetizioni della Grid
@@ -410,14 +348,15 @@ def main():
     apply_clean_style(ax_steps)
     apply_clean_style(ax_time)
 
+    from matplotlib.ticker import MultipleLocator
+    ax_steps.yaxis.set_major_locator(MultipleLocator(100))
+    ax_time.yaxis.set_major_locator(MultipleLocator(100))
+
     # --- Estetica Finale Grafico STEP ---
-    ax_steps.set_title(f"Anytime Performance (Budget) — Workload {workload}",
-                       fontsize=16, fontweight='bold', pad=12)
     ax_steps.set_xlabel("Numero di Configurazioni Testate", fontsize=13)
-    ax_steps.set_ylabel("Throughput Massimo (ops/sec)", fontsize=13)
+    ax_steps.set_ylabel("Throughput Medio Massimo Osservato (ops/sec)", fontsize=13)
     ax_steps.legend(loc='lower right', frameon=True, shadow=False,
                     framealpha=0.9, edgecolor='#cccccc')
-    add_info_boxes(ax_steps_header)  # Riquadri sinistra/destra nell'area header
 
     # ── Export multi-formato ─────────────────────────────────────────────────
     base_steps = os.path.join(master_dir, f"REPORT_STEPS_WL_{workload}")
@@ -426,16 +365,10 @@ def main():
     fig_steps.savefig(base_steps + ".svg",           bbox_inches='tight')
 
     # --- Estetica Finale Grafico TIME ---
-    ax_time.set_title(f"Anytime Performance (Tempo Reale) — Workload {workload}",
-                      fontsize=16, fontweight='bold', pad=12)
-    ax_time.set_xlabel(
-        "Tempo Trascorso (Minuti)\n"
-        r"$\bf{Nota:}$ ■ = step reale   $\bf{×N}$ = rettangolo con N run totali (1 reale + N-1 da cache)",
-        fontsize=11)
-    ax_time.set_ylabel("Throughput Massimo (ops/sec)", fontsize=13)
+    ax_time.set_xlabel("Tempo Trascorso (Minuti)", fontsize=13)
+    ax_time.set_ylabel("Throughput Medio Massimo Osservato (ops/sec)", fontsize=13)
     ax_time.legend(loc='lower right', frameon=True, shadow=False,
                    framealpha=0.9, edgecolor='#cccccc')
-    add_info_boxes(ax_time_header)  # Riquadri sinistra/destra nell'area header
 
     # ── Export multi-formato ─────────────────────────────────────────────────
     base_time = os.path.join(master_dir, f"REPORT_TIME_WL_{workload}")
