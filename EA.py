@@ -123,7 +123,7 @@ def crossover(parent1, parent2):
 
 # mutate() simula la mutazione genetica, introducendo variazioni casuali nei tratti di un individuo con una certa probabilitÃ .
 def mutate(individual):
-    """Mutazione: pura probabilitÃ  darwiniana applicata a OGNI SINGOLO gene in modo indipendente."""
+    """Mutazione: pura probabilitÃ  darwiniana applicata a OGNI SINGOLO gene in modo indipendente."""
 
     # Ogni gene ha una probabilitÃ  fissa (MUTATION_RATE) di essere mutato, cioÃ¨ sostituito da un nuovo valore casuale preso dallo spazio di ricerca.
     ind = list(individual)

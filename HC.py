@@ -369,8 +369,8 @@ def main():
         # 3. Decisione: facciamo sempre il passo sul migliore tra i vicini valutati.
         if evaluations_done < EVALUATIONS:
             if best_next_c_idx == current_c_idx and best_next_j_idx == current_j_idx and best_next_comp_idx == current_comp_idx and best_next_d_idx == current_d_idx:
-                print("\nðŸš« Nessun miglioramento. Ottimo locale raggiunto!")
-                print(f"ðŸ”€ RANDOM RESTART! Sfrutto il budget rimanente ({EVALUATIONS - evaluations_done} valutazioni)...")
+                print("\n Nessun miglioramento. Ottimo locale raggiunto!")
+                print(f" RANDOM RESTART! Sfrutto il budget rimanente ({EVALUATIONS - evaluations_done} valutazioni)...")
                 current_c_idx = random.randint(0, len(CACHE_SIZES) - 1)
                 current_j_idx = random.randint(0, len(JOURNAL_INTERVALS) - 1)
                 current_comp_idx = random.randint(0, len(COMPRESSORS) - 1)
@@ -392,7 +392,7 @@ def main():
                 final_path.append((step, CACHE_SIZES[current_c_idx], JOURNAL_INTERVALS[current_j_idx], COMPRESSORS[current_comp_idx], DISTRIBUTIONS[current_d_idx], is_restart_flag, restart_eval_id))
                 is_restart_flag = False
             else:
-                print(f"\nâœ… Il vicino migliore in assoluto Ã¨: Cache={CACHE_SIZES[best_next_c_idx]}GB | Journal={JOURNAL_INTERVALS[best_next_j_idx]}ms | Comp={COMPRESSORS[best_next_comp_idx]} | Dist={DISTRIBUTIONS[best_next_d_idx].upper()}")
+                print(f"\n Il vicino migliore in assoluto è¨: Cache={CACHE_SIZES[best_next_c_idx]}GB | Journal={JOURNAL_INTERVALS[best_next_j_idx]}ms | Comp={COMPRESSORS[best_next_comp_idx]} | Dist={DISTRIBUTIONS[best_next_d_idx].upper()}")
                 print(f"   Mi sposto qui e procedo allo step successivo!")
                 current_c_idx, current_j_idx, current_comp_idx, current_d_idx = best_next_c_idx, best_next_j_idx, best_next_comp_idx, best_next_d_idx
                 step += 1
