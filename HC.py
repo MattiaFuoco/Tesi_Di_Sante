@@ -33,7 +33,7 @@ from config import *
 # ==========================================
 # VALUTAZIONE CON MEMORIA E CLEAN CSV
 # ==========================================
-# Questa funzione Ã¨ il cuore dell'algoritmo: 
+# Questa funzione e il cuore dell'algoritmo:
 # valuta un punto specifico (configurazione) e utilizza la memoria per evitare valutazioni ridondanti.
 def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_ids, csv_filename, step_num, start_time_global, is_center=False):
     global evaluations_done
@@ -48,10 +48,10 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_i
     if key in visited_points:
         stats = visited_points[key]
         avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
-        print(f"      -> â­ï¸ GiÃ  esplorato in passato! Recupero dalla memoria: {avg_thr:.2f} ops/sec")
+        print(f"      -> Gia esplorato in passato! Recupero dalla memoria: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
-        # Aggiorniamo il CSV anche per questo punto giÃ  visitato, in modo da avere un record completo di tutte le valutazioni, anche quelle memorizzate.
+        # Aggiorniamo il CSV anche per questo punto gia visitato, in modo da avere un record completo di tutte le valutazioni, anche quelle memorizzate.
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([evaluations_done + 1, step_num, c_gb, j_ms, comp, dist, "mean", 
@@ -64,21 +64,21 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_i
     
     evaluations_done += 1
     current_eval_id = evaluations_done
-    visited_eval_ids[key] = current_eval_id   # â† registra l'eval_id originale
+    visited_eval_ids[key] = current_eval_id   # registra l'eval_id originale
     
     tipo_punto = "POSIZIONE ATTUALE" if is_center else "VALUTAZIONE VICINO"
     print(f"\n   [{tipo_punto} - Val. {current_eval_id}/{EVALUATIONS}] Testo: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
     
     # ====================================================================
-    # ðŸš€ LA MAGIA DELL'API: ESECUZIONE NATIVA REALE DA config.py
+    # LA MAGIA DELL'API: ESECUZIONE NATIVA REALE DA config.py
     # ====================================================================
     avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
-    print(f"   ðŸš€ THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
+    print(f"   THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     
     elapsed_minutes = (time.time() - start_time_global) / 60.0
     
-    # Aggiorniamo il CSV con i risultati di questa valutazione, indicando se Ã¨ un punto del percorso (is_path) o meno, e quanto tempo Ã¨ passato dall'inizio dell'algoritmo.
+    # Aggiorniamo il CSV con i risultati di questa valutazione, indicando se e un punto del percorso (is_path) o meno, e quanto tempo e passato dall'inizio dell'algoritmo.
     with open(csv_filename, mode='a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow([current_eval_id, step_num, c_gb, j_ms, comp, dist, "mean",
@@ -153,7 +153,7 @@ def plot_steepest_hc_master(csv_file, output_prefix, global_vmin=None, global_vm
                     # dei bordi rettangolari di griddata+nearest. Fallback su
                     # griddata se RBF fallisce (es. punti collineari).
                     try:
-                        # smooth=0 â†’ RBF passa ESATTAMENTE per i punti misurati.
+                        # smooth=0 -> RBF passa ESATTAMENTE per i punti misurati.
                         # Niente smoothing soppresso: le creste/valli reali emergono
                         # invece di essere "lisciate via" in grandi blob uniformi.
                         rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
@@ -198,7 +198,7 @@ def plot_steepest_hc_master(csv_file, output_prefix, global_vmin=None, global_vm
                 (path_points['compressor'] == comp) & (path_points['distribution'] == dist)
             ].copy()
 
-            # â”€â”€ Raggruppa per posizione (px, py) per gestire sovrapposizioni â”€â”€
+            # Raggruppa per posizione (px, py) per gestire sovrapposizioni
             from collections import defaultdict
             pos_to_rows = defaultdict(list)
             for _, row in panel_pts.iterrows():
@@ -206,7 +206,7 @@ def plot_steepest_hc_master(csv_file, output_prefix, global_vmin=None, global_vm
                 py = journal_map[row['journal_ms']]
                 pos_to_rows[(px, py)].append(row)
 
-            # â”€â”€ Disegna nodi (con offset orizzontale se sovrapposti) â”€â”€
+            # Disegna nodi (con offset orizzontale se sovrapposti)
             for (px, py), rows_at_pos in pos_to_rows.items():
                 n = len(rows_at_pos)
                 for k, row in enumerate(rows_at_pos):
@@ -234,7 +234,7 @@ def plot_steepest_hc_master(csv_file, output_prefix, global_vmin=None, global_vm
                                     bbox=dict(boxstyle="round,pad=0.2", fc=node_color, ec="black", lw=1, alpha=0.9))
                         texts.append(t)
 
-            # â”€â”€ Frecce tra step consecutivi (usa posizioni reali, non offset) â”€â”€
+            # Frecce tra step consecutivi (usa posizioni reali, non offset)
             panel_steps = sorted(panel_pts['step'].tolist())
             for idx in range(len(panel_steps) - 1):
                 s_cur  = panel_steps[idx]
@@ -252,16 +252,16 @@ def plot_steepest_hc_master(csv_file, output_prefix, global_vmin=None, global_vm
             if texts:
                 adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color='gray', lw=0.5, alpha=0.7))
 
-            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES)
-            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS)
-            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=12)
+            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES, fontsize=18)
+            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS, fontsize=18)
+            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=19, fontweight='bold')
             if c == 0:
-                ax.set_ylabel("Journal Interval (ms)", fontsize=12, fontweight='bold')
+                ax.set_ylabel("Journal Interval (ms)", fontsize=19, fontweight='bold')
             if c == len(DISTRIBUTIONS) - 1:
                 ax.yaxis.set_label_position('right')
                 ax.yaxis.set_ticks_position('left')
-                ax.set_ylabel(f"Compressor: {comp.upper()}", fontsize=12, fontweight='bold', rotation=-90, labelpad=15)
-            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=14, fontweight='bold')
+                ax.set_ylabel(f"Compressione: {comp.upper()}", fontsize=19, fontweight='bold', rotation=-90, labelpad=22)
+            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=19, fontweight='bold')
             ax.set_xlim(-0.3, len(CACHE_SIZES)-0.7); ax.set_ylim(-0.3, len(JOURNAL_INTERVALS)-0.7)
             ax.grid(True, linestyle='--', alpha=0.3)
 
@@ -269,7 +269,9 @@ def plot_steepest_hc_master(csv_file, output_prefix, global_vmin=None, global_vm
     fig.subplots_adjust(top=0.97, right=0.92, hspace=0.3) 
     if contour_plot:
         cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) 
-        fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical').set_label('Throughput (ops/sec)', fontsize=14)
+        cbar = fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical')
+        cbar.set_label('Throughput (ops/sec)', fontsize=22)
+        cbar.ax.tick_params(labelsize=17)
     
     plt.savefig(f"{output_prefix}_Griglia_HC.png", dpi=300, bbox_inches='tight')
     plt.savefig(f"{output_prefix}_Griglia_HC.pdf",           bbox_inches='tight')
@@ -285,7 +287,7 @@ def main():
     global evaluations_done
     evaluations_done = 0
     
-    # âš ï¸ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    # DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
     master_dir = get_master_dir()
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"[DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
@@ -293,7 +295,7 @@ def main():
     
     # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
     BASE_DIR = os.path.join(get_master_dir(), "Hill Climbing")
-    print(f"[DEBUG] BASE_DIR sarÃ : {BASE_DIR}")
+    print(f"[DEBUG] BASE_DIR sara: {BASE_DIR}")
     
     # Creazione del CSV con intestazione
     os.makedirs(BASE_DIR, exist_ok=True)
@@ -309,17 +311,17 @@ def main():
                         "throughput_avg", "throughput_min", "throughput_max", "throughput_std",
                         "is_path", "elapsed_minutes"])
 
-    print(f"ðŸš€ PARTENZA ALGORITMO: HILL CLIMBING (Workload {WORKLOAD_TYPE})")
+    print(f"PARTENZA ALGORITMO: HILL CLIMBING (Workload {WORKLOAD_TYPE})")
 
     start_time_global = time.time()
 
-    # Per tenere traccia dei punti giÃ  visitati e dei loro risultati, utilizziamo un dizionario "visited_points"
+    # Per tenere traccia dei punti gia visitati e dei loro risultati, utilizziamo un dizionario "visited_points"
     # che mappa ogni configurazione (c_idx, j_idx, comp_idx, d_idx) alla sua throughput media e durata media.
     visited_points = {}
-    visited_eval_ids = {}   # (c_idx,j_idx,comp_idx,d_idx) â†’ evaluation_id originale
+    visited_eval_ids = {}   # (c_idx,j_idx,comp_idx,d_idx) -> evaluation_id originale
     final_path = []
     
-    # Partiamo dal punto centrale della matrice, che Ã¨ una scelta ragionevole per iniziare la scalata,
+    # Partiamo dal punto centrale della matrice, che e una scelta ragionevole per iniziare la scalata,
     # in quanto ci permette di esplorare in tutte le direzioni.
     current_c_idx = len(CACHE_SIZES) // 2       
     current_j_idx = len(JOURNAL_INTERVALS) // 2 
@@ -329,18 +331,18 @@ def main():
     step = 1
     is_restart_flag = False
     
-    # ðŸŽ¯ Valuto il punto centrale e lo registro come primo punto del percorso
-    print(f"\nðŸŽ¯ VALUTAZIONE PUNTO DI PARTENZA")
+    # Valuto il punto centrale e lo registro come primo punto del percorso
+    print(f"\nVALUTAZIONE PUNTO DI PARTENZA")
     best_thr, s1_eval_id = evaluate_point(current_c_idx, current_j_idx, current_comp_idx, current_d_idx, visited_points, visited_eval_ids, csv_filename, step, start_time_global, is_center=True)
     final_path.append((step, CACHE_SIZES[current_c_idx], JOURNAL_INTERVALS[current_j_idx], COMPRESSORS[current_comp_idx], DISTRIBUTIONS[current_d_idx], is_restart_flag, s1_eval_id))
     
-    # Il ciclo principale continua finchÃ© non raggiungiamo il limite massimo di valutazioni (budget).
+    # Il ciclo principale continua finche non raggiungiamo il limite massimo di valutazioni (budget).
     while evaluations_done < EVALUATIONS:
         print(f"\n" + "="*50)
-        print(f"ðŸŽ¯ INIZIO STEP {step} (Valutazioni Totali: {evaluations_done}/{EVALUATIONS})")
+        print(f"INIZIO STEP {step} (Valutazioni Totali: {evaluations_done}/{EVALUATIONS})")
         print("="*50)
         
-        # Inizialmente, il miglior vicino in assoluto Ã¨ il punto centrale stesso, che Ã¨ il nostro punto di partenza.
+        # Inizialmente, il miglior vicino in assoluto e il punto centrale stesso, che e il nostro punto di partenza.
         best_c_idx, best_j_idx, best_comp_idx, best_d_idx = current_c_idx, current_j_idx, current_comp_idx, current_d_idx
         
         # Reset del flag restart dopo averlo registrato
@@ -353,12 +355,12 @@ def main():
         # Valutiamo tutti i vicini e scegliamo sempre il migliore tra quelli esaminati.
         for n_c, n_j, n_comp, n_d in neighbors:
 
-            # Prima di valutare questo vicino, controlliamo se abbiamo giÃ  raggiunto il limite massimo di valutazioni (budget).
+            # Prima di valutare questo vicino, controlliamo se abbiamo gia raggiunto il limite massimo di valutazioni (budget).
             if evaluations_done >= EVALUATIONS:
-                print(f"\nâš ï¸ Raggiunto il limite massimo di valutazioni (Budget = {EVALUATIONS}). Interruzione forzata.")
+                print(f"\nATTENZIONE: Raggiunto il limite massimo di valutazioni (Budget = {EVALUATIONS}). Interruzione forzata.")
                 break
                 
-            # Valutiamo questo vicino, che restituirÃ  la sua throughput media. La funzione "evaluate_point" si occuperÃ  di gestire la memoria e il CSV.
+            # Valutiamo questo vicino, che restituira la sua throughput media. La funzione "evaluate_point" si occupera di gestire la memoria e il CSV.
             thr, _ = evaluate_point(n_c, n_j, n_comp, n_d, visited_points, visited_eval_ids, csv_filename, step, start_time_global, is_center=False)
 
             # Se questo vicino ha una throughput migliore del miglior vicino trovato finora, aggiorniamo il candidato successivo.
@@ -406,7 +408,7 @@ def main():
         df['is_restart'] = False
         
     for path_step, p_c, p_j, p_comp, p_dist, is_restart, p_eval_id in final_path:
-        mask = df['evaluation_id'] == p_eval_id      # â† chiave univoca
+        mask = df['evaluation_id'] == p_eval_id      # chiave univoca
         df.loc[mask, 'step']    = path_step
         df.loc[mask, 'is_path'] = True
         if is_restart:
@@ -417,13 +419,13 @@ def main():
     # Calcoliamo il tempo totale impiegato per completare l'algoritmo di Hill Climbing, per avere un'idea del tempo necessario per questo tipo di esplorazione locale.
     total_minutes = (time.time() - start_time_global) / 60.0
 
-    print(f"\nâœ… Hill Climbing 4D completato in {total_minutes:.1f} minuti.")
+    print(f"\nHill Climbing 4D completato in {total_minutes:.1f} minuti.")
     
-    print(f"\nðŸ“Š Generazione Grafico Matrice 3x3 in corso...")
+    print(f"\nGenerazione Grafico Matrice 3x3 in corso...")
     # (Generazione Heatmap spostata al termine del workload da master_plotter)
 
     # plot_steepest_hc_master(csv_filename, os.path.join(BASE_DIR, f"Analisi_{ts}"))
-    print(f"âœ… Fatto! Trovi i risultati in: {BASE_DIR}")
+    print(f"Fatto! Trovi i risultati in: {BASE_DIR}")
 
 if __name__ == "__main__":
     main()

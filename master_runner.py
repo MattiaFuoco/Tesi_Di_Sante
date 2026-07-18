@@ -21,7 +21,7 @@ PLOTTER_SCRIPT = "master_plotter.py"
 def run_automation():
     os.system('cls' if os.name == 'nt' else 'clear')
     print("="*65)
-    print("🚀 MONGODB TUNING - AUTOMAZIONE TOTALE 'ZERO-CLICK' 🚀")
+    print("MONGODB TUNING - AUTOMAZIONE TOTALE 'ZERO-CLICK'")
     print("="*65)
     print(f"Inizio sessione: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("Mettiti comodo, il sistema farà tutto da solo per i Workload A, B e D.\n")
@@ -50,30 +50,30 @@ def run_automation():
         os.environ["WORKLOAD_TYPE"] = workload
         
         print(f"\n" + "#"*65)
-        print(f"🔥 FASE WORKLOAD {workload} - Output: {os.path.basename(session_dir)}")
+        print(f"FASE WORKLOAD {workload} - Output: {os.path.basename(session_dir)}")
         print("#"*65)
 
         for name, script in ALGORITHMS:
             if os.path.exists(script):
-                print(f"▶️ Esecuzione: {name}...")
+                print(f"Esecuzione: {name}...")
                 # Lancia lo script e aspetta che finisca
-                # ⚠️ IMPORTANTE: Passa esplicitamente l'environment per garantire che le variabili
+                # IMPORTANTE: Passa esplicitamente l'environment per garantire che le variabili
                 # d'ambiente (BENCHMARK_MASTER_DIR, WORKLOAD_TYPE) vengano ereditate dal subprocess.
                 # Questo è critico sul server Debian dove l'ereditarietà dell'environment
                 # potrebbe non funzionare se non passata esplicitamente.
                 subprocess.run([sys.executable, "-u", script], env=os.environ.copy())
                 time.sleep(3) # Pausa di respiro per il PC tra un algoritmo e l'altro
             else:
-                print(f"⚠️ Script non trovato: {script}")
+                print(f"ATTENZIONE: Script non trovato: {script}")
         
-        print(f"\n📊 Generazione automatica grafici Workload {workload}...")
+        print(f"\nGenerazione automatica grafici Workload {workload}...")
         if os.path.exists(PLOTTER_SCRIPT):
             subprocess.run([sys.executable, "-u", PLOTTER_SCRIPT], env=os.environ.copy())
-            print(f"✅ Grafici generati in: {os.path.basename(session_dir)}")
+            print(f"Grafici generati in: {os.path.basename(session_dir)}")
         else:
-            print(f"❌ Plotter non trovato: {PLOTTER_SCRIPT}")
+            print(f"PLOTTER NON TROVATO: {PLOTTER_SCRIPT}")
 
-        print(f"\n✅ FASE WORKLOAD {workload} COMPLETATA CON SUCCESSO!")
+        print(f"\nFASE WORKLOAD {workload} COMPLETATA CON SUCCESSO!")
         time.sleep(5)
 
     # [FASE 3] PULIZIA FINALE: Solo quando abbiamo finito TUTTI i workload
@@ -81,7 +81,7 @@ def run_automation():
 
     duration = (time.time() - start_time_total) / 60.0
     print("\n" + "="*65)
-    print(f"🎉 TUTTO COMPLETATO in {duration:.1f} minuti!")
+    print(f"TUTTO COMPLETATO in {duration:.1f} minuti!")
     print(f"Controlla le cartelle appena create per i tuoi risultati e grafici.")
     print("="*65)
 

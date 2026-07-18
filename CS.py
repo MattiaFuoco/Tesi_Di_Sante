@@ -38,8 +38,8 @@ evaluations_done = 0
 # ==========================================
 # VALUTAZIONE CON MEMORIA E DELEGAZIONE ALLA MASTER API
 # ==========================================
-# Questa funzione Ã¨ il cuore dell'esplorazione: valuta un punto specifico, ma prima controlla se Ã¨ giÃ  stato valutato (memoization).
-# Se Ã¨ giÃ  stato valutato, recupera il risultato dalla memoria e lo registra nel CSV senza dover rieseguire il test.
+# Questa funzione e il cuore dell'esplorazione: valuta un punto specifico, ma prima controlla se e gia stato valutato (memoization).
+# Se e gia stato valutato, recupera il risultato dalla memoria e lo registra nel CSV senza dover rieseguire il test.
 # Altrimenti, esegue il test completo delegando al configuratore centrale, registra il risultato e lo memorizza.
 def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_ids, csv_filename, step_num, start_time_global, is_center=False):
     global evaluations_done
@@ -54,7 +54,7 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_i
     if key in visited_points:
         stats = visited_points[key]
         avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
-        print(f"      -> â­ï¸ GiÃ  esplorato! Recupero memoria: {avg_thr:.2f} ops/sec")
+        print(f"      -> Gia esplorato! Recupero memoria: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
         evaluations_done += 1
@@ -71,16 +71,16 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_i
     
     evaluations_done += 1
     current_eval_id = evaluations_done
-    visited_eval_ids[key] = current_eval_id   # â† registra l'eval_id originale
+    visited_eval_ids[key] = current_eval_id   # registra l'eval_id originale
     
-    # Indico se Ã¨ il punto di partenza (PUNTO BASE) o un punto di esplorazione lungo un asse (ESPLORAZIONE ASSE).
+    # Indico se e il punto di partenza (PUNTO BASE) o un punto di esplorazione lungo un asse (ESPLORAZIONE ASSE).
     tipo_punto = "PUNTO BASE" if is_center else "ESPLORAZIONE ASSE"
     print(f"\n   [{tipo_punto} - Val. {current_eval_id}/{EVALUATIONS}] Testo: C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
     
-    # Il configuratore si occuperÃ  di eseguire i vari run, calcolare la media e restituire i risultati.
+    # Il configuratore si occupera di eseguire i vari run, calcolare la media e restituire i risultati.
     avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
-    print(f"   ðŸš€ THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
+    print(f"   THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     elapsed_minutes = (time.time() - start_time_global) / 60.0
     
     # Registrazione nel CSV
@@ -102,7 +102,7 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, visited_eval_i
 # In questo modo, quando esploro un asse, mi concentro solo su quel cambiamento specifico.
 def get_axis_neighbors(c_idx, j_idx, comp_idx, d_idx, axis):
     """Restituisce TUTTI i punti lungo l'asse specificato (escluso il punto corrente),
-    tenendo fissi gli altri 3 parametri. Questo Ã¨ il comportamento corretto della
+    tenendo fissi gli altri 3 parametri. Questo e il comportamento corretto della
     Coordinate Search: esplora l'intero asse prima di decidere dove spostarsi."""
     
     neighbors = []
@@ -169,7 +169,7 @@ def plot_cs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     # dei bordi rettangolari di griddata+nearest. Fallback su
                     # griddata se RBF fallisce (es. punti collineari).
                     try:
-                        # smooth=0 â†’ RBF passa ESATTAMENTE per i punti misurati.
+                        # smooth=0 -> RBF passa ESATTAMENTE per i punti misurati.
                         # Niente smoothing soppresso: le creste/valli reali emergono
                         # invece di essere "lisciate via" in grandi blob uniformi.
                         rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
@@ -212,7 +212,7 @@ def plot_cs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                 (path_points['compressor'] == comp) & (path_points['distribution'] == dist)
             ].copy()
 
-            # â”€â”€ Raggruppa per posizione (px, py) per gestire sovrapposizioni â”€â”€
+            # Raggruppa per posizione (px, py) per gestire sovrapposizioni
             from collections import defaultdict
             pos_to_rows = defaultdict(list)
             for _, row in panel_pts.iterrows():
@@ -220,7 +220,7 @@ def plot_cs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                 py = journal_map[row['journal_ms']]
                 pos_to_rows[(px, py)].append(row)
 
-            # â”€â”€ Disegna nodi (con offset orizzontale se sovrapposti) â”€â”€
+            # Disegna nodi (con offset orizzontale se sovrapposti)
             label_positions = {}   # step_num -> (lx, ly) per le frecce
             for (px, py), rows_at_pos in pos_to_rows.items():
                 n = len(rows_at_pos)
@@ -252,7 +252,7 @@ def plot_cs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                                     bbox=dict(boxstyle="round,pad=0.2", fc=node_color, ec="black", lw=1, alpha=0.9))
                         texts.append(t)
 
-            # â”€â”€ Frecce tra step consecutivi (usa posizioni reali px/py, non offset) â”€â”€
+            # Frecce tra step consecutivi (usa posizioni reali px/py, non offset)
             panel_steps = sorted(panel_pts['step'].tolist())
             for idx in range(len(panel_steps) - 1):
                 s_cur  = panel_steps[idx]
@@ -273,16 +273,16 @@ def plot_cs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
             if texts:
                 adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color='gray', lw=0.5, alpha=0.7))
 
-            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES)
-            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS)
-            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=12)
+            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES, fontsize=18)
+            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS, fontsize=18)
+            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=19, fontweight='bold')
             if c == 0:
-                ax.set_ylabel("Journal Interval (ms)", fontsize=12, fontweight='bold')
+                ax.set_ylabel("Journal Interval (ms)", fontsize=19, fontweight='bold')
             if c == len(DISTRIBUTIONS) - 1:
                 ax.yaxis.set_label_position('right')
                 ax.yaxis.set_ticks_position('left')
-                ax.set_ylabel(f"Compressor: {comp.upper()}", fontsize=12, fontweight='bold', rotation=-90, labelpad=15)
-            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=14, fontweight='bold')
+                ax.set_ylabel(f"Compressione: {comp.upper()}", fontsize=19, fontweight='bold', rotation=-90, labelpad=22)
+            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=19, fontweight='bold')
             ax.set_xlim(-0.3, len(CACHE_SIZES)-0.7); ax.set_ylim(-0.3, len(JOURNAL_INTERVALS)-0.7)
             ax.grid(True, linestyle='--', alpha=0.3)
 
@@ -291,7 +291,9 @@ def plot_cs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     
     if contour_plot:
         cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) 
-        fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical').set_label('Throughput (ops/sec)', fontsize=14)
+        cbar = fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical')
+        cbar.set_label('Throughput (ops/sec)', fontsize=22)
+        cbar.ax.tick_params(labelsize=17)
     
     plt.savefig(f"{output_prefix}_Griglia_CS.png", dpi=300, bbox_inches='tight')
     plt.savefig(f"{output_prefix}_Griglia_CS.pdf",           bbox_inches='tight')
@@ -305,7 +307,7 @@ def main():
     global evaluations_done
     evaluations_done = 0
     
-    # âš ï¸ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    # DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
     master_dir = get_master_dir()
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"[DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
@@ -313,7 +315,7 @@ def main():
     
     # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
     BASE_DIR = os.path.join(get_master_dir(), "Coordinate Search")
-    print(f"[DEBUG] BASE_DIR sarÃ : {BASE_DIR}")
+    print(f"[DEBUG] BASE_DIR sara: {BASE_DIR}")
     
     os.makedirs(BASE_DIR, exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
@@ -326,13 +328,13 @@ def main():
                         "throughput_avg", "throughput_min", "throughput_max", "throughput_std",
                         "is_path", "elapsed_minutes"])
 
-    print(f"ðŸš€ PARTENZA ALGORITMO: COORDINATE SEARCH (Workload {WORKLOAD_TYPE})")
+    print(f"PARTENZA ALGORITMO: COORDINATE SEARCH (Workload {WORKLOAD_TYPE})")
 
     start_time_global = time.time()
 
-    # Per tenere traccia dei punti giÃ  valutati e dei risultati, utilizzo una struttura di memoization.
+    # Per tenere traccia dei punti gia valutati e dei risultati, utilizzo una struttura di memoization.
     visited_points = {}
-    visited_eval_ids = {}   # (c_idx,j_idx,comp_idx,d_idx) â†’ evaluation_id originale
+    visited_eval_ids = {}   # (c_idx,j_idx,comp_idx,d_idx) -> evaluation_id originale
     final_path = []
     asse_nomi = ["Cache", "Journal", "Compressore", "Distribuzione"]
     
@@ -344,16 +346,16 @@ def main():
     
     step = 1
     is_restart_flag = False
-    print(f"\nðŸŽ¯ VALUTAZIONE PUNTO DI PARTENZA")
+    print(f"\nVALUTAZIONE PUNTO DI PARTENZA")
     # Valuto il punto centrale e lo registro come primo punto del percorso (is_path=True)
     best_thr, s1_eval_id = evaluate_point(curr_c, curr_j, curr_comp, curr_d, visited_points, visited_eval_ids, csv_filename, step, start_time_global, is_center=True)
     # Registro il punto centrale come primo punto del percorso (is_path=True)
     final_path.append((step, CACHE_SIZES[curr_c], JOURNAL_INTERVALS[curr_j], COMPRESSORS[curr_comp], DISTRIBUTIONS[curr_d], is_restart_flag, s1_eval_id))
     
-    # Il ciclo esterno continua finchÃ© non raggiungiamo il limite massimo di valutazioni (budget).
+    # Il ciclo esterno continua finche non raggiungiamo il limite massimo di valutazioni (budget).
     while evaluations_done < EVALUATIONS:
         print(f"\n" + "="*50)
-        print(f"ðŸ”„ INIZIO NUOVO CICLO SUGLI ASSI (Valutazioni: {evaluations_done}/{EVALUATIONS})")
+        print(f"INIZIO NUOVO CICLO SUGLI ASSI (Valutazioni: {evaluations_done}/{EVALUATIONS})")
         print("="*50)
          
         improvement_in_cycle = False
@@ -362,7 +364,7 @@ def main():
             if evaluations_done >= EVALUATIONS:
                 break
                 
-            print(f"\n   ðŸ” Esploro asse: {asse_nomi[axis]} (tenendo fissi gli altri)...")
+            print(f"\n   Esploro asse: {asse_nomi[axis]} (tenendo fissi gli altri)...")
             # Ottengo solo i vicini lungo QUESTO asse, tenendo fissi gli altri 3 parametri
             neighbors = get_axis_neighbors(curr_c, curr_j, curr_comp, curr_d, axis)
             
@@ -374,7 +376,7 @@ def main():
             # Esploro i vicini lungo QUESTO asse specifico, valutando ognuno e confrontando con il miglior risultato trovato finora.
             for n_c, n_j, n_comp, n_d in neighbors:
                 if evaluations_done >= EVALUATIONS:
-                    print(f"âš ï¸ Raggiunto il limite massimo di valutazioni (Budget = {EVALUATIONS}). Interruzione forzata.")
+                    print(f"ATTENZIONE: Raggiunto il limite massimo di valutazioni (Budget = {EVALUATIONS}). Interruzione forzata.")
                     break
                     
                 # Valuto il punto vicino e ottengo la sua throughput media
@@ -387,7 +389,7 @@ def main():
                     found_better_on_axis = True
             
             # --- MOVIMENTO ---
-            # Se ho trovato di meglio su QUESTO asse, MI MUOVO. Altrimenti rimango dov'Ã¨.
+            # Se ho trovato di meglio su QUESTO asse, MI MUOVO. Altrimenti rimango dov'e.
             if found_better_on_axis:
                 if evaluations_done < EVALUATIONS:
                     curr_c, curr_j, curr_comp, curr_d = axis_best_coords
@@ -398,14 +400,14 @@ def main():
                     final_path.append((step, CACHE_SIZES[curr_c], JOURNAL_INTERVALS[curr_j], COMPRESSORS[curr_comp], DISTRIBUTIONS[curr_d], is_restart_flag, move_eval_id))
                     is_restart_flag = False
                     
-                    print(f"   âœ… Miglioramento sull'asse {asse_nomi[axis]}! Mi sposto subito a: Cache={CACHE_SIZES[curr_c]}GB | Journal={JOURNAL_INTERVALS[curr_j]}ms | Comp={COMPRESSORS[curr_comp]} | Dist={DISTRIBUTIONS[curr_d].upper()}")
+                    print(f"   Miglioramento sull'asse {asse_nomi[axis]}! Mi sposto subito a: Cache={CACHE_SIZES[curr_c]}GB | Journal={JOURNAL_INTERVALS[curr_j]}ms | Comp={COMPRESSORS[curr_comp]} | Dist={DISTRIBUTIONS[curr_d].upper()}")
                     improvement_in_cycle = True
 
         # Se in un intero ciclo di tutti gli assi non abbiamo trovato alcun miglioramento, siamo in un ottimo locale. 
         if not improvement_in_cycle:
-            print("\nðŸš« Nessun miglioramento. Ottimo locale raggiunto!")
+            print("\nNESSUN MIGLIORAMENTO. Ottimo locale raggiunto!")
             if evaluations_done < EVALUATIONS:
-                print(f"ðŸ”€ RANDOM RESTART! Sfrutto il budget rimanente ({EVALUATIONS - evaluations_done} valutazioni)...")
+                print(f"RANDOM RESTART! Sfrutto il budget rimanente ({EVALUATIONS - evaluations_done} valutazioni)...")
                 curr_c = random.randint(0, len(CACHE_SIZES) - 1)
                 curr_j = random.randint(0, len(JOURNAL_INTERVALS) - 1)
                 curr_comp = random.randint(0, len(COMPRESSORS) - 1)
@@ -436,7 +438,7 @@ def main():
         df['is_restart'] = False
         
     for path_step, p_c, p_j, p_comp, p_dist, is_restart, p_eval_id in final_path:
-        mask = df['evaluation_id'] == p_eval_id      # â† chiave univoca
+        mask = df['evaluation_id'] == p_eval_id      # chiave univoca
         df.loc[mask, 'step']    = path_step
         df.loc[mask, 'is_path'] = True
         if is_restart:
@@ -447,14 +449,14 @@ def main():
     # Calcoliamo il tempo totale impiegato per completare la Coordinate Search, per avere un'idea del tempo necessario per questo tipo di esplorazione sistematica.
     total_minutes = (time.time() - start_time_global) / 60.0
 
-    print(f"\nâœ… Coordinate Search completata in {total_minutes:.1f} minuti.")
-    print(f"ðŸ† OTTIMO LOCALE TROVATO: Cache={CACHE_SIZES[curr_c]}GB | Journal={JOURNAL_INTERVALS[curr_j]}ms | Comp={COMPRESSORS[curr_comp]} | Dist={DISTRIBUTIONS[curr_d].upper()}")
+    print(f"\nCoordinate Search completata in {total_minutes:.1f} minuti.")
+    print(f"OTTIMO LOCALE TROVATO: Cache={CACHE_SIZES[curr_c]}GB | Journal={JOURNAL_INTERVALS[curr_j]}ms | Comp={COMPRESSORS[curr_comp]} | Dist={DISTRIBUTIONS[curr_d].upper()}")
     
-    print(f"\nðŸ“Š Generazione Grafico Matrice 3x3 in corso...")
+    print(f"\nGenerazione Grafico Matrice 3x3 in corso...")
     # (Generazione Heatmap spostata al termine del workload da master_plotter)
 
     # plot_cs_master(csv_filename, os.path.join(BASE_DIR, f"Analisi_WL_{WORKLOAD_TYPE}_{ts}"))
-    print(f"âœ… Fatto! Trovi i risultati in: {BASE_DIR}")
+    print(f"Fatto! Trovi i risultati in: {BASE_DIR}")
 
 if __name__ == "__main__":
     main()

@@ -50,16 +50,16 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, csv_filename, 
     comp = COMPRESSORS[comp_idx]
     dist = DISTRIBUTIONS[d_idx]
     
-    # --- 1. MEMOIZATION (Evita di rifare test giÃ  fatti) ---
-    # Prima di eseguire un test, controlliamo se abbiamo giÃ  valutato questa configurazione.
-    # Se sÃ¬, recuperiamo il risultato dalla memoria e salviamo comunque nel CSV per tracciamento completo.
+    # --- 1. MEMOIZATION (Evita di rifare test gia fatti) ---
+    # Prima di eseguire un test, controlliamo se abbiamo gia valutato questa configurazione.
+    # Se si, recuperiamo il risultato dalla memoria e salviamo comunque nel CSV per tracciamento completo.
     if (c_idx, j_idx, comp_idx, d_idx) in visited_points:
         stats = visited_points[(c_idx, j_idx, comp_idx, d_idx)]
         avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
-        print(f"      -> â­ï¸ Punto giÃ  valutato! Recupero dalla memoria: {avg_thr:.2f} ops/sec")
+        print(f"      -> Punto gia valutato! Recupero dalla memoria: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
-        # Salviamo comunque il risultato nel CSV per avere un tracciamento completo, anche dei punti giÃ  visitati.
+        # Salviamo comunque il risultato nel CSV per avere un tracciamento completo, anche dei punti gia visitati.
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([step_num, phase, c_gb, j_ms, comp, dist, "mean",
@@ -71,11 +71,11 @@ def evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, csv_filename, 
     print(f"\n   [Step {step_num} | {phase}] Valuto : C={c_gb}GB, J={j_ms}ms, Comp={comp}, Dist={dist.upper()} ...", end="", flush=True)
     
     # ====================================================================
-    # ðŸš€ LA MAGIA DELL'API: Deleghiamo TUTTO a config.py in una sola riga!
+    # LA MAGIA DELL'API: Deleghiamo tutto a config.py in una sola riga!
     # ====================================================================
     avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
-    print(f"   ðŸš€ THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
+    print(f"   THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     
     # --- 2. SALVATAGGIO DEI RISULTATI ---
     elapsed_minutes = (time.time() - start_time_global) / 60.0
@@ -124,13 +124,13 @@ def plot_bo_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                 grid_x, grid_y = np.mgrid[-0.3:len(CACHE_SIZES)-0.7:100j, -0.3:len(JOURNAL_INTERVALS)-0.7:100j]
                 try:
                     import scipy.ndimage
-                    # Interpolazione "topografica" liscia su TUTTO il piano:
+                    # Interpolazione "topografica" liscia su tutto il piano:
                     # RBF multiquadric estende organicamente fuori dall'inviluppo
                     # convesso dei punti, producendo contorni ondeggianti invece
                     # dei bordi rettangolari di griddata+nearest. Fallback su
                     # griddata se RBF fallisce (es. punti collineari).
                     try:
-                        # smooth=0 â†’ RBF passa ESATTAMENTE per i punti misurati.
+                        # smooth=0 -> RBF passa ESATTAMENTE per i punti misurati.
                         # Niente smoothing soppresso: le creste/valli reali emergono
                         # invece di essere "lisciate via" in grandi blob uniformi.
                         rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
@@ -179,9 +179,9 @@ def plot_bo_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     is_best = (int(path_steps[i]) == absolute_best_step)
 
                     if is_best:
-                        # Stella dorata â€” il testo "TN" viene disegnato con annotate
+                        # Stella dorata - il testo "TN" viene disegnato con annotate
                         # ancorato alle coordinate del punto (xycoords='data') e NON
-                        # aggiunto a `texts`, cosÃ¬ adjust_text non lo sposta mai via
+                        # aggiunto a `texts`, cosi adjust_text non lo sposta mai via
                         # dalla stella. fontsize piccolo (7) per stare dentro la stella.
                         ax.scatter(px, py, color='gold', marker='*', s=1200, zorder=12,
                                    edgecolors='black', linewidth=1.5)
@@ -190,7 +190,7 @@ def plot_bo_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                                     fontsize=7, fontweight='bold', color='black',
                                     xycoords='data', zorder=14,
                                     annotation_clip=False)
-                        # NON aggiungiamo a texts â†’ adjust_text non lo tocca
+                        # NON aggiungiamo a texts -> adjust_text non lo tocca
                     else:
                         pt_color = 'lightgray' if path_phases[i] == 'Init' else 'white'
                         ax.scatter(px, py, color=pt_color, s=150, zorder=8,
@@ -201,7 +201,7 @@ def plot_bo_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                                               lw=1, alpha=0.9))
                         texts.append(t)  # solo i punti normali vengono spostati da adjust_text
                     
-                    # Disegniamo la freccia SOLO se anche il passo successivo (i+1) Ã¨ caduto in questo STESSO riquadro
+                    # Disegniamo la freccia SOLO se anche il passo successivo (i+1) e caduto in questo STESSO riquadro
                     if i < len(path_steps) - 1 and path_comp[i+1] == comp and path_dist[i+1] == dist:
                         nx = cache_map[path_c[i+1]]
                         ny = journal_map[path_j[i+1]]
@@ -214,16 +214,16 @@ def plot_bo_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
             if texts:
                 adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color='gray', lw=0.5, alpha=0.7))
 
-            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES)
-            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS)
-            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=12)
+            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES, fontsize=18)
+            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS, fontsize=18)
+            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=19, fontweight='bold')
             if c == 0:
-                ax.set_ylabel("Journal Interval (ms)", fontsize=12, fontweight='bold')
+                ax.set_ylabel("Journal Interval (ms)", fontsize=19, fontweight='bold')
             if c == len(DISTRIBUTIONS) - 1:
                 ax.yaxis.set_label_position('right')
                 ax.yaxis.set_ticks_position('left')
-                ax.set_ylabel(f"Compressor: {comp.upper()}", fontsize=12, fontweight='bold', rotation=-90, labelpad=15)
-            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=14, fontweight='bold')
+                ax.set_ylabel(f"Compressione: {comp.upper()}", fontsize=19, fontweight='bold', rotation=-90, labelpad=22)
+            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=19, fontweight='bold')
             ax.set_xlim(-0.3, len(CACHE_SIZES)-0.7); ax.set_ylim(-0.3, len(JOURNAL_INTERVALS)-0.7)
             ax.grid(True, linestyle='--', alpha=0.3)
 
@@ -231,7 +231,9 @@ def plot_bo_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     fig.subplots_adjust(top=0.97, right=0.92, hspace=0.3) 
     if contour_plot:
         cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) 
-        fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical').set_label('Throughput (ops/sec)', fontsize=14)
+        cbar = fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical')
+        cbar.set_label('Throughput (ops/sec)', fontsize=22)
+        cbar.ax.tick_params(labelsize=17)
     
     plt.savefig(f"{output_prefix}_Griglia_BO.png", dpi=300, bbox_inches='tight')
     plt.savefig(f"{output_prefix}_Griglia_BO.pdf",           bbox_inches='tight')
@@ -250,9 +252,9 @@ def get_normalized_coords(c_idx, j_idx, comp_idx, d_idx):
     ]
 
 def main():
-    print(f"ðŸ§  PARTENZA ALGORITMO: BAYESIAN OPTIMIZATION (Workload {WORKLOAD_TYPE})")
+    print(f"PARTENZA ALGORITMO: BAYESIAN OPTIMIZATION (Workload {WORKLOAD_TYPE})")
 
-    # âš ï¸ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    # DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
     master_dir = get_master_dir()
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
@@ -260,7 +262,7 @@ def main():
     
     # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
     BASE_DIR = os.path.join(get_master_dir(), "Bayesian Optimization")
-    print(f"   [DEBUG] BASE_DIR sarÃ : {BASE_DIR}")
+    print(f"   [DEBUG] BASE_DIR sara: {BASE_DIR}")
 
     # Creazione directory e file CSV per i risultati
     os.makedirs(BASE_DIR, exist_ok=True)
@@ -280,13 +282,13 @@ def main():
     # Kernel Matematico per la BO
     kernel = C(1.0, (1e-3, 1e3)) * Matern(length_scale=1.0, nu=2.5)
     
-    # Struttura dati per memorizzare i punti giÃ  visitati e i loro risultati, in modo da evitare di rifare test giÃ  fatti.
+    # Struttura dati per memorizzare i punti gia visitati e i loro risultati, in modo da evitare di rifare test gia fatti.
     visited_points = {}
     X_train = [] 
     y_train = [] 
     
     # Generiamo la lista completa di tutte le combinazioni di parametri, che rappresentano lo spazio di ricerca totale.
-    # Questa lista ci servirÃ  per tenere traccia dei punti ancora da visitare.
+    # Questa lista ci servira per tenere traccia dei punti ancora da visitare.
     unvisited = [(c, j, comp, d) for c in range(len(CACHE_SIZES)) 
                                  for j in range(len(JOURNAL_INTERVALS)) 
                                  for comp in range(len(COMPRESSORS)) 
@@ -294,13 +296,13 @@ def main():
     
     print(f"\n--- FASE 1: INIZIALIZZAZIONE ({INIT_POINTS} PUNTI CASUALI SU TUTTO LO SPAZIO) ---")
     # Selezioniamo casualmente un certo numero di punti dallo spazio totale per l'inizializzazione,
-    # in modo da avere una base di dati su cui far apprendere l'IA.
+    # in modo da avere una base di dati su cui far apprendere il modello.
     init_points = random.sample(unvisited, INIT_POINTS) 
     
     step = 1
 
     # Valutiamo i punti iniziali, salvando i risultati sia in memoria che nel CSV.
-    # Questi punti serviranno come base di apprendimento per l'IA.
+    # Questi punti serviranno come base di apprendimento del modello.
     for c_idx, j_idx, comp_idx, d_idx in init_points:
         thr = evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, csv_filename, step, "Init", start_time_global)
         X_train.append(get_normalized_coords(c_idx, j_idx, comp_idx, d_idx))
@@ -308,15 +310,15 @@ def main():
         unvisited.remove((c_idx, j_idx, comp_idx, d_idx))
         step += 1
         
-    print(f"\n--- FASE 2: OTTIMIZZAZIONE BAYESIANA ({OPT_STEPS} PUNTI GUIDATI DALL'IA) ---")
-    # Ora che abbiamo i dati iniziali, l'IA puÃ² iniziare a guidare la ricerca verso le aree piÃ¹ promettenti dello spazio,
+    print(f"\n--- FASE 2: OTTIMIZZAZIONE BAYESIANA ({OPT_STEPS} PUNTI GUIDATI DAL MODELLO) ---")
+    # Ora che abbiamo i dati iniziali, il modello puo iniziare a guidare la ricerca verso le aree piu promettenti dello spazio,
     # bilanciando esplorazione e sfruttamento.
     gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, normalize_y=True)
     
-    # Per ogni passo di ottimizzazione, l'IA valuta tutti i punti non ancora visitati,
-    # calcola l'UCB (Upper Confidence Bound, cioÃ¨ il limite superiore della confidenza) e sceglie il punto con il valore piÃ¹ alto.
+    # Per ogni passo di ottimizzazione, il modello valuta tutti i punti non ancora visitati,
+    # calcola l'UCB (Upper Confidence Bound, cioe il limite superiore della confidenza) e sceglie il punto con il valore piu alto.
     for opt_step in range(OPT_STEPS):
-        print(f"\nðŸ‘‰ Calcolo Processo Gaussiano - Step {step}...")
+        print(f"\nCalcolo Processo Gaussiano - Step {step}...")
         gp.fit(X_train, y_train)
         
         best_ucb = -float('inf')
@@ -334,13 +336,13 @@ def main():
                 best_point = (c_idx, j_idx, comp_idx, d_idx)
         
         c_idx, j_idx, comp_idx, d_idx = best_point
-        print(f"   ðŸ¤– L'AI sceglie: Cache={CACHE_SIZES[c_idx]}GB | Journal={JOURNAL_INTERVALS[j_idx]}ms | Comp={COMPRESSORS[comp_idx]} | Dist={DISTRIBUTIONS[d_idx].upper()}")
+        print(f" Viene selezionata la configurazione: Cache={CACHE_SIZES[c_idx]}GB | Journal={JOURNAL_INTERVALS[j_idx]}ms | Comp={COMPRESSORS[comp_idx]} | Dist={DISTRIBUTIONS[d_idx].upper()}")
         
-        # Valutiamo il punto scelto dall'IA, salvando i risultati in memoria e nel CSV.
+        # Valutiamo il punto scelto dal modello, salvando i risultati in memoria e nel CSV.
         thr = evaluate_point(c_idx, j_idx, comp_idx, d_idx, visited_points, csv_filename, step, "BO", start_time_global)
         
         # Aggiorniamo i dati di addestramento con il nuovo punto valutato,
-        # in modo che l'IA possa apprendere da questo nuovo risultato per i passi successivi.
+        # in modo che il modello possa apprendere da questo nuovo risultato per i passi successivi.
         X_train.append(get_normalized_coords(c_idx, j_idx, comp_idx, d_idx))
         y_train.append(thr)
         unvisited.remove((c_idx, j_idx, comp_idx, d_idx))
@@ -353,22 +355,22 @@ def main():
     best_comp_idx = int(round(X_train[best_idx][2] * (len(COMPRESSORS) - 1)))
     best_d_idx = int(round(X_train[best_idx][3] * (len(DISTRIBUTIONS) - 1)))
     
-    # Calcoliamo il tempo totale impiegato per completare la Bayesian Optimization, per avere un'idea del tempo necessario per questo tipo di esplorazione guidata dall'IA.
+    # Calcoliamo il tempo totale impiegato per completare la Bayesian Optimization, per avere un'idea del tempo necessario per questo tipo di esplorazione guidata dal modello.
     total_minutes = (time.time() - start_time_global) / 60.0
 
-    print(f"\nðŸ FINE RICERCA BAYESIANA. (Tempo totale: {total_minutes:.1f} minuti)")
-    print(f"ðŸ† OTTIMO ASSOLUTO TROVATO: Cache={CACHE_SIZES[best_c_idx]}GB | Journal={JOURNAL_INTERVALS[best_j_idx]}ms | Comp={COMPRESSORS[best_comp_idx]} | Dist={DISTRIBUTIONS[best_d_idx].upper()}")
+    print(f"\nFINE RICERCA BAYESIANA. (Tempo totale: {total_minutes:.1f} minuti)")
+    print(f"OTTIMO ASSOLUTO TROVATO: Cache={CACHE_SIZES[best_c_idx]}GB | Journal={JOURNAL_INTERVALS[best_j_idx]}ms | Comp={COMPRESSORS[best_comp_idx]} | Dist={DISTRIBUTIONS[best_d_idx].upper()}")
 
-    print(f"\nðŸ“Š Generazione Grafico Matrice 3x3 in corso...")
+    print(f"\nGenerazione Grafico Matrice 3x3 in corso...")
     
     image_prefix = os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}")
     try:
         # (Generazione Heatmap spostata al termine del workload da master_plotter)
 
         # plot_bo_master(csv_filename, image_prefix)
-        print(f"âœ… Mappe salvate con successo in: {BASE_DIR}")
+        print(f"Mappe salvate con successo in: {BASE_DIR}")
     except Exception as e:
-        print(f"âš ï¸ Impossibile generare la heatmap: {e}")
+        print(f"ATTENZIONE: Impossibile generare la heatmap: {e}")
 
 if __name__ == "__main__":
     main()

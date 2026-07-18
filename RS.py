@@ -73,7 +73,7 @@ def plot_rs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     # dei bordi rettangolari di griddata+nearest. Fallback su
                     # griddata se RBF fallisce (es. punti collineari).
                     try:
-                        # smooth=0 â†’ RBF passa ESATTAMENTE per i punti misurati.
+                        # smooth=0 -> RBF passa ESATTAMENTE per i punti misurati.
                         # Niente smoothing soppresso: le creste/valli reali emergono
                         # invece di essere "lisciate via" in grandi blob uniformi.
                         rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
@@ -131,8 +131,8 @@ def plot_rs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     py = journal_map[path_j[i]]
                     
                     if path_evals[i] == absolute_best_eval_id:
-                        # Stella dorata â€” annotate ancorato al punto, NON in texts
-                        # cosÃ¬ adjust_text non lo sposta mai fuori dalla stella.
+                        # Stella dorata - annotate ancorato al punto, NON in texts
+                        # cosi adjust_text non lo sposta mai fuori dalla stella.
                         ax.scatter(px, py, color='gold', marker='*', s=1200, zorder=12,
                                    edgecolors='black', linewidth=1.5)
                         ax.annotate(f"T{int(path_evals[i])}", xy=(px, py),
@@ -140,7 +140,7 @@ def plot_rs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                                     fontsize=7, fontweight='bold', color='black',
                                     xycoords='data', zorder=14,
                                     annotation_clip=False)
-                        # NON aggiungiamo a texts â†’ adjust_text non lo tocca
+                        # NON aggiungiamo a texts -> adjust_text non lo tocca
                     else:
                         # PALLINO BIANCO (Record intermedio)
                         ax.scatter(px, py, color='white', s=150, zorder=8, edgecolors='black', linewidth=1.5)
@@ -154,16 +154,16 @@ def plot_rs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
             if texts:
                 adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color='gray', lw=0.5, alpha=0.7))
 
-            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES)
-            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS)
-            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=12)
+            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES, fontsize=18)
+            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS, fontsize=18)
+            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=19, fontweight='bold')
             if c == 0:
-                ax.set_ylabel("Journal Interval (ms)", fontsize=12, fontweight='bold')
+                ax.set_ylabel("Journal Interval (ms)", fontsize=19, fontweight='bold')
             if c == len(DISTRIBUTIONS) - 1:
                 ax.yaxis.set_label_position('right')
                 ax.yaxis.set_ticks_position('left')
-                ax.set_ylabel(f"Compressor: {comp.upper()}", fontsize=12, fontweight='bold', rotation=-90, labelpad=15)
-            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=14, fontweight='bold')
+                ax.set_ylabel(f"Compressione: {comp.upper()}", fontsize=19, fontweight='bold', rotation=-90, labelpad=22)
+            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=19, fontweight='bold')
             ax.set_xlim(-0.3, len(CACHE_SIZES)-0.7); ax.set_ylim(-0.3, len(JOURNAL_INTERVALS)-0.7)
             ax.grid(True, linestyle='--', alpha=0.3)
 
@@ -171,7 +171,9 @@ def plot_rs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     fig.subplots_adjust(top=0.97, right=0.92, hspace=0.3) 
     if contour_plot:
         cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) 
-        fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical').set_label('Throughput (ops/sec)', fontsize=14)
+        cbar = fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical')
+        cbar.set_label('Throughput (ops/sec)', fontsize=22)
+        cbar.ax.tick_params(labelsize=17)
     
     plt.savefig(f"{output_prefix}_Griglia_RS.png", dpi=300, bbox_inches='tight')
     plt.savefig(f"{output_prefix}_Griglia_RS.pdf",           bbox_inches='tight')
@@ -182,9 +184,9 @@ def plot_rs_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
 # MAIN LOOP (RANDOM SEARCH)
 # ==========================================
 def main():
-    print(f"ðŸŽ² PARTENZA ALGORITMO: RANDOM SEARCH (Workload {WORKLOAD_TYPE})")
+    print(f"PARTENZA ALGORITMO: RANDOM SEARCH (Workload {WORKLOAD_TYPE})")
     
-    # âš ï¸ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    # DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
     master_dir = get_master_dir()
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
@@ -192,7 +194,7 @@ def main():
     
     # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
     BASE_DIR = os.path.join(get_master_dir(), "Random Search")
-    print(f"   [DEBUG] BASE_DIR sarÃ : {BASE_DIR}")
+    print(f"   [DEBUG] BASE_DIR sara: {BASE_DIR}")
     
     # Creiamo la cartella dei risultati se non esiste e prepariamo il file CSV per salvare i risultati in modo pulito e strutturato.
     os.makedirs(BASE_DIR, exist_ok=True)
@@ -211,7 +213,7 @@ def main():
     start_time_global = time.time()
     best_thr_global = -1
     
-    # Creiamo una lista di tutte le combinazioni possibili, che ci servirÃ  per estrarre casualmente le configurazioni da testare, garantendo un'esplorazione ampia e non guidata da alcun bias.
+    # Creiamo una lista di tutte le combinazioni possibili, che ci servira per estrarre casualmente le configurazioni da testare, garantendo un'esplorazione ampia e non guidata da alcun bias.
     unvisited = [(c, j, comp, d) for c in range(len(CACHE_SIZES)) 
                                  for j in range(len(JOURNAL_INTERVALS)) 
                                  for comp in range(len(COMPRESSORS)) 
@@ -220,7 +222,7 @@ def main():
     # Loop fino a raggiungere il numero massimo di valutazioni o fino a esaurire tutte le combinazioni possibili.
     for eval_id in range(1, EVALUATIONS + 1):
         if not unvisited: 
-            print("\nðŸ Tutte le combinazioni possibili sono state esplorate!")
+            print("\nTutte le combinazioni possibili sono state esplorate!")
             break
             
         # Scegliamo casualmente una combinazione non ancora esplorata, per garantire un'esplorazione ampia e non guidata da alcun bias.
@@ -239,12 +241,12 @@ def main():
         # ====================================================================
         avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
         
-        print(f"   ðŸš€ THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
+        print(f"   THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
         
-        # Verifichiamo se questo nuovo risultato Ã¨ un nuovo record globale, aggiornando la variabile e segnalandolo nel CSV.
+        # Verifichiamo se questo nuovo risultato e un nuovo record globale, aggiornando la variabile e segnalandolo nel CSV.
         is_new_best = False
         if avg_thr > best_thr_global:
-            print(f"   ðŸ† NUOVO RECORD GLOBALE CASUALE: {avg_thr:.2f} ops/sec!")
+            print(f"   NUOVO RECORD GLOBALE CASUALE: {avg_thr:.2f} ops/sec!")
             best_thr_global = avg_thr
             is_new_best = True
             
@@ -261,16 +263,16 @@ def main():
     # Calcoliamo il tempo totale impiegato per completare la Random Search, per avere un'idea del tempo necessario per questo tipo di esplorazione casuale.
     total_minutes = (time.time() - start_time_global) / 60.0
 
-    print(f"\nâœ… Random Search Completa in {total_minutes:.1f} minuti.")
+    print(f"\nRandom Search Completa in {total_minutes:.1f} minuti.")
     
-    print(f"\nðŸ“Š Generazione Grafico Mappa Topografica in corso...")
+    print(f"\nGenerazione Grafico Mappa Topografica in corso...")
     try:
         # (Generazione Heatmap spostata al termine del workload da master_plotter)
 
         # plot_rs_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
-        print(f"âœ… Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
+        print(f"Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
     except Exception as e:
-        print(f"âš ï¸ Impossibile generare la heatmap: {e}")
+        print(f"ATTENZIONE: Impossibile generare la heatmap: {e}")
 
 if __name__ == "__main__":
     main()

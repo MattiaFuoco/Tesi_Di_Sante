@@ -56,7 +56,7 @@ WORKLOAD_TYPE = os.environ.get("WORKLOAD_TYPE", "A")
 _mongod_process = None
 
 # ==========================================
-# 🛠️ HELPER INTERNI
+# HELPER INTERNI
 # ==========================================
 def _data_dir(compressor):
     """Directory dati dedicata per ogni compressore, dentro il container."""
@@ -69,7 +69,7 @@ def _ensure_dirs():
         os.makedirs(_data_dir(comp), exist_ok=True)
 
 # ==========================================
-# 🛠️ CORE API 1: GESTIONE MONGOD INTERNO
+# CORE API 1: GESTIONE MONGOD INTERNO
 # ==========================================
 def _stop_mongod():
     """Ferma mongod se è in esecuzione."""
@@ -122,14 +122,14 @@ def _start_mongod(compressor, cache_gb=1.0, journal_ms=100):
         if result.returncode == 0:
             return
         time.sleep(1)
-    raise Exception(f"❌ mongod ({compressor}) non si è avviato.")
+    raise Exception(f" mongod ({compressor}) non si è avviato.")
 
 def stop_all_containers_keep_data():
     """Compatibilità con master_runner — ferma mongod senza cancellare dati."""
     _stop_mongod()
 
 def full_teardown():
-    """💥 Ferma mongod e cancella tutti i dati per ripartire pulito."""
+    """ Ferma mongod e cancella tutti i dati per ripartire pulito."""
     _stop_mongod()
     for comp in COMPRESSORS:
         subprocess.run(["rm", "-rf", _data_dir(comp)],
@@ -147,7 +147,7 @@ def drop_os_cache():
     )
 
 # ==========================================
-# 🛠️ CORE API 2: SETUP YCSB E MEGA-LOAD
+# CORE API 2: SETUP YCSB E MEGA-LOAD
 # ==========================================
 def setup_and_load_data(compressor):
     """Inserisce i documenti nel database tramite YCSB."""
@@ -168,9 +168,9 @@ def setup_and_load_data(compressor):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def global_setup_database():
-    """🔥 Mega-Load iniziale: crea i 3 dataset una sola volta."""
+    """Mega-Load iniziale: crea i 3 dataset una sola volta."""
     print(f"\n{'='*70}")
-    print(f"🚀 FASE 1: TRIPLO MEGA-LOAD (3 DB da {PRELOAD_DOCS} record)")
+    print(f"FASE 1: TRIPLO MEGA-LOAD (3 DB da {PRELOAD_DOCS} record)")
     print(f"{'='*70}")
 
     _ensure_dirs()
@@ -186,15 +186,15 @@ def global_setup_database():
             ["mongosh", "--quiet", "--eval", "db.adminCommand({fsync: 1})"],
             check=True
         )
-        print(f"💾 fsync completato.")
+        print(f"fsync completato.")
         time.sleep(15)
-        print(f"✅ Mega-Load {comp.upper()} completato.")
+        print(f"Mega-Load {comp.upper()} completato.")
         _stop_mongod()
 
-    print("\n✅ Tutti e 3 i dataset sono pronti. Avvio benchmark!")
+    print("\nTutti e 3 i dataset sono pronti. Avvio benchmark!")
 
 # ==========================================
-# 🛠️ CORE API 3: ESECUZIONE BENCHMARK
+# CORE API 3: ESECUZIONE BENCHMARK
 # ==========================================
 def restart_mongodb_for_run(cache_gb, compressor, journal_ms):
     """Riavvia mongod con i parametri di test sul dataset del compressore."""
@@ -217,7 +217,7 @@ def run_benchmark(distribution):
     process = subprocess.run(cmd_run, capture_output=True, text=True)
 
     if process.returncode != 0:
-        print(f"\n❌ ERRORE YCSB: {process.stderr}")
+        print(f"\nERRORE YCSB: {process.stderr}")
         return 0.0
 
     match = re.search(
@@ -226,7 +226,7 @@ def run_benchmark(distribution):
     return float(match.group(1)) if match else 0.0
 
 # ==========================================
-# 🚀 MASTER API
+# MASTER API
 # ==========================================
 def execute_full_test(cache_gb, journal_ms, compressor, dist):
     """Cold Cache → avvio mongod → benchmark → stop.
@@ -249,7 +249,7 @@ def execute_full_test(cache_gb, journal_ms, compressor, dist):
             print(f"   [Rep {r+1}/{REPETITIONS}] [RUN] Benchmark...", flush=True)
             thr = run_benchmark(dist)
         except Exception as e:
-            print(f"\n❌ ERRORE durante il test: {e}")
+            print(f"\nERRORE durante il test: {e}")
             _stop_mongod()
             thr = 0.0
 

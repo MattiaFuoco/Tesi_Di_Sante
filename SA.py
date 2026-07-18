@@ -42,7 +42,7 @@ ITER_PER_TEMP = 1
 # Calcoliamo l'alpha in modo che l'algoritmo tocchi T_MIN esattamente al test EVALUATIONS
 ALPHA = math.pow((T_MIN / T_INIT), (1.0 / (EVALUATIONS - 1)))
 
-print(f"ðŸŒ¡ï¸ Termodinamica Calibrata: Budget={EVALUATIONS}, Alpha calcolato={ALPHA:.4f}")
+print(f"Termodinamica Calibrata: Budget={EVALUATIONS}, Alpha calcolato={ALPHA:.4f}")
 
 # ==========================================
 # FUNZIONI CORE DELL'ALGORITMO (PURISTA)
@@ -67,15 +67,15 @@ def evaluate_configuration_sa(state, visited_points, csv_filename, temp, iter_nu
     c_gb, j_ms, comp, dist = state
     
     # --- MEMOIZATION: Memoria Antica ---
-    # Prima di eseguire un test completo, controlliamo se questa configurazione Ã¨ giÃ  stata valutata in passato.
+    # Prima di eseguire un test completo, controlliamo se questa configurazione e gia stata valutata in passato.
     if state in visited_points:
         stats = visited_points[state]
         avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = stats
-        print(f"      -> â­ï¸ Stato giÃ  noto! Recupero dalla memoria: {avg_thr:.2f} ops/sec")
+        print(f"      -> Stato gia noto! Recupero dalla memoria: {avg_thr:.2f} ops/sec")
         elapsed_minutes = (time.time() - start_time_global) / 60.0
         
-        # Anche se Ã¨ un punto giÃ  visitato, vogliamo comunque registrare questa "valutazione" nel CSV,
-        # indicando che Ã¨ stata accettata o meno in questa iterazione, e quanto tempo Ã¨ passato dall'inizio dell'algoritmo.
+        # Anche se e un punto gia visitato, vogliamo comunque registrare questa "valutazione" nel CSV,
+        # indicando che e stata accettata o meno in questa iterazione, e quanto tempo e passato dall'inizio dell'algoritmo.
         with open(csv_filename, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([eval_id, temp, iter_num, c_gb, j_ms, comp, dist, "mean",
@@ -89,7 +89,7 @@ def evaluate_configuration_sa(state, visited_points, csv_filename, temp, iter_nu
     # Esecuzione Nativa Reale da config.py
     avg_thr, min_thr, max_thr, std_thr, avg_dur, min_dur, max_dur, std_dur = execute_full_test(c_gb, j_ms, comp, dist)
     
-    print(f"   ðŸš€ THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
+    print(f"   THROUGHPUT FINALE MEDIO: {avg_thr:.2f} ops/sec\n")
     
     elapsed_minutes = (time.time() - start_time_global) / 60.0
     
@@ -107,7 +107,7 @@ def evaluate_configuration_sa(state, visited_points, csv_filename, temp, iter_nu
     
     return avg_thr
 
-# get_neighbor(state) Ã¨ la funzione che definisce la "neighborhood" per il Simulated Annealing,
+# get_neighbor(state) e la funzione che definisce la "neighborhood" per il Simulated Annealing,
 # generando una configurazione vicina modificando un solo gene (parametro) alla volta.
 def get_neighbor(state):
     """Neighborhood: Genera una configurazione vicina garantendo che il gene mutato sia DIVERSO da quello attuale."""
@@ -181,7 +181,7 @@ def plot_sa_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     # dei bordi rettangolari di griddata+nearest. Fallback su
                     # griddata se RBF fallisce (es. punti collineari).
                     try:
-                        # smooth=0 â†’ RBF passa ESATTAMENTE per i punti misurati.
+                        # smooth=0 -> RBF passa ESATTAMENTE per i punti misurati.
                         # Niente smoothing soppresso: le creste/valli reali emergono
                         # invece di essere "lisciate via" in grandi blob uniformi.
                         rbf = Rbf(x_coords, y_coords, z_vals, function='multiquadric', smooth=0)
@@ -239,8 +239,8 @@ def plot_sa_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                     py = journal_map[path_j[i]]
                     
                     if path_evals[i] == absolute_best_eval_id:
-                        # Stella dorata â€” annotate ancorato al punto, NON in texts
-                        # cosÃ¬ adjust_text non lo sposta mai fuori dalla stella.
+                        # Stella dorata - annotate ancorato al punto, NON in texts
+                        # cosi adjust_text non lo sposta mai fuori dalla stella.
                         ax.scatter(px, py, color='gold', marker='*', s=1200, zorder=12,
                                    edgecolors='black', linewidth=1.5)
                         ax.annotate(f"T{int(path_evals[i])}", xy=(px, py),
@@ -248,7 +248,7 @@ def plot_sa_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
                                     fontsize=7, fontweight='bold', color='black',
                                     xycoords='data', zorder=14,
                                     annotation_clip=False)
-                        # NON aggiungiamo a texts â†’ adjust_text non lo tocca
+                        # NON aggiungiamo a texts -> adjust_text non lo tocca
                     else:
                         # PALLINO BIANCO (Stato Accettato)
                         ax.scatter(px, py, color='white', s=150, zorder=8, edgecolors='black', linewidth=1.5)
@@ -267,16 +267,16 @@ def plot_sa_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
             if texts:
                 adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color='gray', lw=0.5, alpha=0.7))
 
-            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES)
-            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS)
-            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=12)
+            ax.set_xticks(range(len(CACHE_SIZES))); ax.set_xticklabels(CACHE_SIZES, fontsize=18)
+            ax.set_yticks(range(len(JOURNAL_INTERVALS))); ax.set_yticklabels(JOURNAL_INTERVALS, fontsize=18)
+            if r == len(COMPRESSORS) - 1: ax.set_xlabel("Cache Size (GB)", fontsize=19, fontweight='bold')
             if c == 0:
-                ax.set_ylabel("Journal Interval (ms)", fontsize=12, fontweight='bold')
+                ax.set_ylabel("Journal Interval (ms)", fontsize=19, fontweight='bold')
             if c == len(DISTRIBUTIONS) - 1:
                 ax.yaxis.set_label_position('right')
                 ax.yaxis.set_ticks_position('left')
-                ax.set_ylabel(f"Compressor: {comp.upper()}", fontsize=12, fontweight='bold', rotation=-90, labelpad=15)
-            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=14, fontweight='bold')
+                ax.set_ylabel(f"Compressione: {comp.upper()}", fontsize=19, fontweight='bold', rotation=-90, labelpad=22)
+            if r == 0: ax.set_title(f"Distribuzione: {dist.upper()}", fontsize=19, fontweight='bold')
             ax.set_xlim(-0.3, len(CACHE_SIZES)-0.7); ax.set_ylim(-0.3, len(JOURNAL_INTERVALS)-0.7)
             ax.grid(True, linestyle='--', alpha=0.3)
 
@@ -284,7 +284,9 @@ def plot_sa_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
     fig.subplots_adjust(top=0.97, right=0.92, hspace=0.3) 
     if contour_plot:
         cbar_ax = fig.add_axes([0.94, 0.15, 0.015, 0.7]) 
-        fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical').set_label('Throughput (ops/sec)', fontsize=14)
+        cbar = fig.colorbar(contour_plot, cax=cbar_ax, orientation='vertical')
+        cbar.set_label('Throughput (ops/sec)', fontsize=22)
+        cbar.ax.tick_params(labelsize=17)
     
     plt.savefig(f"{output_prefix}_Griglia_SA.png", dpi=300, bbox_inches='tight')
     plt.savefig(f"{output_prefix}_Griglia_SA.pdf",           bbox_inches='tight')
@@ -295,9 +297,9 @@ def plot_sa_master(csv_file, output_prefix, global_vmin=None, global_vmax=None):
 # MAIN LOOP (SIMULATED ANNEALING PURO)
 # ==========================================
 def main():
-    print(f"ðŸŒ¡ï¸ PARTENZA ALGORITMO: SIMULATED ANNEALING (Workload {WORKLOAD_TYPE})")
+    print(f"PARTENZA ALGORITMO: SIMULATED ANNEALING (Workload {WORKLOAD_TYPE})")
     
-    # âš ï¸ DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
+    # DEBUG: Verifica che le variabili d'ambiente siano impostate correttamente
     master_dir = get_master_dir()
     env_var = os.environ.get("BENCHMARK_MASTER_DIR")
     print(f"   [DEBUG] BENCHMARK_MASTER_DIR (env var): {env_var}")
@@ -305,15 +307,15 @@ def main():
     
     # Calcola BASE_DIR DENTRO main() per usare il valore CORRETTO di BENCHMARK_MASTER_DIR
     BASE_DIR = os.path.join(get_master_dir(), "Simulated Annealing")
-    print(f"   [DEBUG] BASE_DIR sarÃ : {BASE_DIR}")
+    print(f"   [DEBUG] BASE_DIR sara: {BASE_DIR}")
     
     # Creiamo la directory dei risultati se non esiste, e prepariamo il file CSV per registrare tutte le valutazioni, accettazioni e tempi.
     os.makedirs(BASE_DIR, exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
     csv_filename = os.path.join(BASE_DIR, f"RESULTS_SA_WL_{WORKLOAD_TYPE}_{ts}.csv")
     
-    # Scriviamo l'intestazione del CSV, che conterrÃ  tutte le informazioni rilevanti per ogni valutazione, inclusi i parametri testati,
-    # la throughput ottenuta, se Ã¨ stata accettata o meno, e quanto tempo Ã¨ passato dall'inizio dell'algoritmo.
+    # Scriviamo l'intestazione del CSV, che conterra tutte le informazioni rilevanti per ogni valutazione, inclusi i parametri testati,
+    # la throughput ottenuta, se e stata accettata o meno, e quanto tempo e passato dall'inizio dell'algoritmo.
     with open(csv_filename, mode='w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["evaluation_id", "temperature", "iteration", "cache_GB", "journal_ms", "compressor", "distribution", "repetition",
@@ -329,31 +331,31 @@ def main():
     # 1. Genesi: Stato Iniziale e Temperatura Iniziale
     print("\n--- FASE 1: GENESI DELLO STATO INIZIALE A CALDO ---")
     current_state, current_temp = initialize_sa()
-    # Il primo stato Ã¨ accettato per forza
+    # Il primo stato e accettato per forza
     current_thr = evaluate_configuration_sa(current_state, visited_points, csv_filename, current_temp, 0, eval_id, True, start_time_global)
     
-    # Impostiamo la best_thr_global al primo stato, che Ã¨ il nostro punto di partenza e il primo miglioramento assoluto trovato.
+    # Impostiamo la best_thr_global al primo stato, che e il nostro punto di partenza e il primo miglioramento assoluto trovato.
     best_thr_global = current_thr
     eval_id += 1
     
     print(f"\n--- FASE 2: CICLO DI RAFFREDDAMENTO GEOMETRICO (ALPHA={ALPHA}) ---")
     
-    # Loop Principale â€” usiamo un CONTATORE esplicito invece di "current_temp > T_MIN"
-    # perchÃ© il confronto floating point Ã¨ instabile: ALPHA^(EVALUATIONS-1) non
-    # raggiunge T_MIN esattamente e il while potrebbe girare una volta in piÃ¹ o in meno.
-    # Con il contatore il numero di valutazioni Ã¨ garantito = EVALUATIONS (1 iniziale
+    # Loop Principale - usiamo un CONTATORE esplicito invece di "current_temp > T_MIN"
+    # perche il confronto floating point e instabile: ALPHA^(EVALUATIONS-1) non
+    # raggiunge T_MIN esattamente e il while potrebbe girare una volta in piu o in meno.
+    # Con il contatore il numero di valutazioni e garantito = EVALUATIONS (1 iniziale
     # + EVALUATIONS-1 nel loop).
     cooling_steps = EVALUATIONS - 1   # iterazioni rimanenti dopo la valutazione iniziale
     step_count = 0
 
     while step_count < cooling_steps:
 
-        # 5. Raffreddamento Geometrico â†’ all'inizio cosÃ¬ la temperatura usata per
+        # 5. Raffreddamento Geometrico -> all'inizio cosi la temperatura usata per
         # il criterio di Metropolis decresce correttamente ad ogni passo.
         current_temp *= ALPHA
         step_count += 1
 
-        print(f"\nâ„ï¸ Temperatura attuale: {current_temp:.4f}")
+        print(f"\nTemperatura attuale: {current_temp:.4f}")
         
         # Loop interno: Tentativi a temperatura costante
         for i in range(1, ITER_PER_TEMP + 1):
@@ -364,7 +366,7 @@ def main():
             # Valutiamo prima come "False" (non ancora accettato)
             neighbor_thr = evaluate_configuration_sa(neighbor_state, visited_points, csv_filename, current_temp, i, eval_id, False, start_time_global)
             
-            # 3. Calcoliamo la variazione PERCENTUALE (es. 0.05 significa che il vicino Ã¨ peggiore del 5%)
+            # 3. Calcoliamo la variazione PERCENTUALE (es. 0.05 significa che il vicino e peggiore del 5%)
             if current_thr > 0:
                 delta_throughput = (current_thr - neighbor_thr) / current_thr
             else:
@@ -373,37 +375,37 @@ def main():
             # 4. Criterio di Accettazione di Metropolis (PURO)
             accepted = False
             if delta_throughput < 0:
-                # Caso A: Il vicino Ã¨ MIGLIORE. Lo accettiamo sempre.
-                print(f"      -> âœ… Vicino MIGLIORE accettato (Thr: {neighbor_thr:.2f})")
+                # Caso A: Il vicino e MIGLIORE. Lo accettiamo sempre.
+                print(f"      -> Vicino MIGLIORE accettato (Thr: {neighbor_thr:.2f})")
                 accepted = True
                 
-                # Se questo vicino migliore Ã¨ anche il nuovo record globale, aggiorniamo la best_thr_global e stampiamo un messaggio di celebrazione.
+                # Se questo vicino migliore e anche il nuovo record globale, aggiorniamo la best_thr_global e stampiamo un messaggio di celebrazione.
                 if neighbor_thr > best_thr_global:
                     best_thr_global = neighbor_thr
-                    print(f"         ðŸ† NUOVO RECORD GLOBALE TROVATO: {best_thr_global:.2f} ops/sec!")
+                    print(f"         NUOVO RECORD GLOBALE TROVATO: {best_thr_global:.2f} ops/sec!")
             else:
-                # Caso B: Il vicino Ã¨ PEGGIORE. Applichiamo la probabilitÃ  di Metropolis.
-                # La probabilitÃ  di accettare un vicino peggiore diminuisce all'aumentare della differenza di throughput (delta_throughput) 
+                # Caso B: Il vicino e PEGGIORE. Applichiamo la probabilita di Metropolis.
+                # La probabilita di accettare un vicino peggiore diminuisce all'aumentare della differenza di throughput (delta_throughput) 
                 # e al diminuire della temperatura (current_temp).
                 acceptance_probability = math.exp(-delta_throughput / current_temp)
                 
-                # Generiamo un numero casuale tra 0 e 1, e se Ã¨ inferiore alla probabilitÃ  di accettazione,
-                # accettiamo comunque questo vicino peggiore, permettendo cosÃ¬ all'algoritmo di esplorare soluzioni che altrimenti verrebbero scartate,
+                # Generiamo un numero casuale tra 0 e 1, e se e inferiore alla probabilita di accettazione,
+                # accettiamo comunque questo vicino peggiore, permettendo cosi all'algoritmo di esplorare soluzioni che altrimenti verrebbero scartate,
                 # e potenzialmente superare i massimi locali.
                 if random.random() < acceptance_probability:
-                    print(f"      -> ðŸŽ² Vicino PEGGIORE accettato per Metropolis (Prob: {acceptance_probability * 100:.2f}%)")
+                    print(f"      -> Vicino PEGGIORE accettato per Metropolis (Prob: {acceptance_probability * 100:.2f}%)")
                     accepted = True
-                # Se non accettiamo il vicino peggiore, stampiamo un messaggio che indica che Ã¨ stato rifiutato,
-                # insieme alla probabilitÃ  di accettazione che Ã¨ stata calcolata.
+                # Se non accettiamo il vicino peggiore, stampiamo un messaggio che indica che e stato rifiutato,
+                # insieme alla probabilita di accettazione che e stata calcolata.
                 else:
-                    print(f"      -> âŒ Vicino peggiore rifiutato (Prob: {acceptance_probability * 100:.2f}%)")
+                    print(f"      -> Vicino peggiore rifiutato (Prob: {acceptance_probability * 100:.2f}%)")
 
             # Se lo abbiamo accettato (sia per miglioramento che per Metropolis), aggiorniamo il CSV e il nostro stato
             if accepted:
                 current_state = neighbor_state
                 current_thr = neighbor_thr
                 
-                # Aggiorniamo il CSV per questo vicino accettato, modificando la riga corrispondente a questa valutazione (eval_id) per indicare che Ã¨ stata accettata.
+                # Aggiorniamo il CSV per questo vicino accettato, modificando la riga corrispondente a questa valutazione (eval_id) per indicare che e stata accettata.
                 df = pd.read_csv(csv_filename)
                 df.loc[df['evaluation_id'] == eval_id, 'accepted'] = True
                 df.to_csv(csv_filename, index=False)
@@ -413,17 +415,17 @@ def main():
     # Calcoliamo il tempo totale impiegato per completare l'algoritmo di Simulated Annealing, per avere un'idea del tempo necessario per questo tipo di esplorazione guidata.
     total_minutes = (time.time() - start_time_global) / 60.0
 
-    print(f"\nðŸ Simulated Annealing Completato in {total_minutes:.1f} minuti.")
-    print(f"ðŸ† OTTIMO ASSOLUTO TROVATO: Throughput: {best_thr_global:.2f} ops/sec")
+    print(f"\nSimulated Annealing Completato in {total_minutes:.1f} minuti.")
+    print(f"OTTIMO ASSOLUTO TROVATO: Throughput: {best_thr_global:.2f} ops/sec")
     
-    print(f"\nðŸ“Š Generazione Grafico Mappa Topografica in corso...")
+    print(f"\nGenerazione Grafico Mappa Topografica in corso...")
     try:
         # (Generazione Heatmap spostata al termine del workload da master_plotter)
 
         # plot_sa_master(csv_filename, os.path.join(BASE_DIR, f"HEATMAP_WL_{WORKLOAD_TYPE}_{ts}"))
-        print(f"âœ… Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
+        print(f"Fatto! Trovi i risultati e la mappa in: {BASE_DIR}")
     except Exception as e:
-        print(f"âš ï¸ Impossibile generare la heatmap: {e}")
+        print(f"ATTENZIONE: Impossibile generare la heatmap: {e}")
 
 if __name__ == "__main__":
     main()

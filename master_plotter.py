@@ -79,12 +79,12 @@ def main():
     master_dir = os.environ.get("BENCHMARK_MASTER_DIR")
     workload = os.environ.get("WORKLOAD_TYPE")
 
-    # ⚠️ DEBUG: Verifica variabili d'ambiente
+    # DEBUG: Verifica variabili d'ambiente
     print(f"\n[PLOTTER DEBUG] BENCHMARK_MASTER_DIR (env var): {master_dir}")
     print(f"[PLOTTER DEBUG] WORKLOAD_TYPE (env var): {workload}")
 
     if not master_dir or not workload:
-        print("❌ [PLOTTER ERROR] Variabili d'ambiente mancanti. Uso cartella locale per test.")
+        print("[PLOTTER ERROR] Variabili d'ambiente mancanti. Uso cartella locale per test.")
         master_dir = os.getcwd()
         # Aggiornato il fallback per supportare anche il Workload D
         if "Workload_A" in master_dir:
@@ -96,7 +96,7 @@ def main():
         else:
             workload = "Sconosciuto"
 
-    print(f"📊 [MASTER PLOTTER] Generazione dei 2 report (Steps & Time) per Workload {workload}...")
+    print(f"[MASTER PLOTTER] Generazione dei 2 report (Steps & Time) per Workload {workload}...")
 
     # Cerca i CSV in tutte le sottocartelle (BO, HC, ecc.)
     all_csvs = glob.glob(os.path.join(master_dir, "**", "*.csv"), recursive=True)
@@ -247,10 +247,10 @@ def main():
                 'y':           df['cummax_throughput'].values,
                 'best_config': best_config,
             }
-            print(f"✅ Dati caricati per: {algo_name}")
+            print(f"Dati caricati per: {algo_name}")
 
         except Exception as e:
-            print(f"⚠️ Errore nel file {csv_file}: {e}")
+            print(f"ATTENZIONE: Errore nel file {csv_file}: {e}")
 
     # Disegno delle linee per ogni algoritmo
     for algo_name, data in sorted(algo_data.items()):
@@ -377,12 +377,12 @@ def main():
     fig_time.savefig(base_time + ".svg",           bbox_inches='tight')
 
     plt.close('all')
-    print(f"✨ [PLOTTER] Grafici salvati in 3 formati (PNG/PDF/SVG) in: {master_dir}")
+    print(f"[PLOTTER] Grafici salvati in 3 formati (PNG/PDF/SVG) in: {master_dir}")
 
     # ==========================================
     # RIGENERAZIONE HEATMAP CON SCALA CROMATICA GLOBALE
     # ==========================================
-    print(f"\n📊 [MASTER PLOTTER] Generazione Heatmap algoritmi con scala cromatica globale per Workload {workload}...")
+    print(f"\n[MASTER PLOTTER] Generazione Heatmap algoritmi con scala cromatica globale per Workload {workload}...")
     
     # 1. Calcolo del min e max globale per il throughput
     global_vmin = float('inf')
@@ -400,7 +400,7 @@ def main():
             pass
 
     if global_vmin == float('inf') or global_vmax == float('-inf'):
-        print("⚠️ Nessun dato valido trovato per calcolare min/max globale. Uso scala locale per algoritmi.")
+        print("ATTENZIONE: Nessun dato valido trovato per calcolare min/max globale. Uso scala locale per algoritmi.")
         global_vmin = None
         global_vmax = None
     else:
@@ -421,7 +421,7 @@ def main():
             if plot_func:
                 plot_func(csv_path, out_prefix, global_vmin=global_vmin, global_vmax=global_vmax)
         except Exception as e:
-            print(f"⚠️ Errore nel generare la heatmap da {py_file} per il file {csv_path}: {e}")
+            print(f"ATTENZIONE: Errore nel generare la heatmap da {py_file} per il file {csv_path}: {e}")
 
     import datetime
     ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
